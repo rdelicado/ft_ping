@@ -44,6 +44,35 @@ run_help_test() {
     echo "---"
 }
 
+# Función para ejecutar pruebas de memory leaks con Valgrind
+run_memory_test() {
+    local desc="$1"
+    local cmd="$2"
+
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
+    
+    echo -e "${BLUE}Prueba $TOTAL_TESTS: Memory Leak - $desc${NC}"
+    echo -e "${YELLOW}Comando: valgrind $cmd${NC}"
+
+    # Ejecutar con Valgrind y capturar salida
+    valgrind_output=$(valgrind --leak-check=summary --error-exitcode=1 $cmd 2>&1)
+    valgrind_exit=$?
+
+    # Analizar resultados - verificar que no haya leaks Y que el programa termine correctamente
+    if echo "$valgrind_output" | grep -q "All heap blocks were freed -- no leaks are possible"; then
+        echo -e "${GREEN}✓ PASS${NC} - Sin memory leaks detectados"
+        PASSED_TESTS=$((PASSED_TESTS + 1))
+    else
+        echo -e "${RED}✗ FAIL${NC} - Memory leak detectado o error en análisis"
+        echo -e "${RED}Valgrind output:${NC}"
+        echo "$valgrind_output" | head -10
+        if [ $valgrind_exit -ne 0 ]; then
+            echo -e "${RED}Exit code: $valgrind_exit${NC}"
+        fi
+    fi
+    echo "---"
+}
+
 # Función para ejecutar y mostrar resultado con PASS/FAIL
 run_test() {
     local desc="$1"
@@ -108,6 +137,7 @@ show_stats() {
     if [ $PASSED_TESTS -eq $TOTAL_TESTS ]; then
         echo -e "${GREEN}¡Todas las pruebas pasaron! 🎉${NC}"
         echo -e "${CYAN}📋 Nota: Test de ayuda (-?) cumple con requisitos del subject${NC}"
+        echo -e "${CYAN}🛡️  Nota: Todas las pruebas de memory leaks pasaron - sin fugas detectadas${NC}"
     else
         echo -e "${RED}Algunas pruebas fallaron. Revisar código.${NC}"
     fi
@@ -262,6 +292,26 @@ run_test "Solo puntos (.....)" "./ft_ping ....." "No es una destino valido"
 # Casos con caracteres Unicode/especiales  
 run_test "Caracteres Unicode (café.com)" "./ft_ping café.com" "No es una destino valido"
 run_test "Emojis (🌐.com)" "./ft_ping 🌐.com" "No es una destino valido"
+
+# ============================================================================
+# PRUEBAS DE MEMORY LEAKS
+# ============================================================================
+echo ""
+echo -e "${CYAN}=== Pruebas de Memory Leaks ===${NC}"
+
+# Pruebas de memory leaks con diferentes tipos de destinos
+run_memory_test "Hostname válido (google.com)" "timeout 3 ./ft_ping google.com"
+run_memory_test "IP válida (8.8.8.8)" "timeout 3 ./ft_ping 8.8.8.8"
+run_memory_test "Localhost" "timeout 3 ./ft_ping localhost"
+run_memory_test "IP local (127.0.0.1)" "timeout 3 ./ft_ping 127.0.0.1"
+run_memory_test "Con verbose (-v)" "timeout 3 ./ft_ping -v google.com"
+run_memory_test "Decimal IP (2130706433)" "timeout 3 ./ft_ping 2130706433"
+run_memory_test "Decimal IP con verbose" "timeout 3 ./ft_ping -v 2130706433"
+
+# Pruebas de memory leaks con casos de error (deben fallar pero sin leaks)
+run_memory_test "Sin argumentos (error)" "./ft_ping"
+run_memory_test "Destino inválido (error)" "./ft_ping invalid.host.name"
+run_memory_test "IP inválida (error)" "./ft_ping 999.999.999.999"
 
 # ============================================================================
 # RESUMEN Y ESTADÍSTICAS

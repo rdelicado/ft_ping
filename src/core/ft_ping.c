@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 17:59:44 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/12 10:53:39 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/13 15:53:46 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,12 +29,24 @@ void	print_help(void)
 		puts(help[i]);
 }
 
+void	cleanup_args(t_args *args)
+{
+	if (args && args->dest && args->dest_allocated) {
+		free(args->dest);
+		args->dest = NULL;
+		args->dest_allocated = 0;
+	}
+}
+
 int main(int ac, char **av)
 {
 	t_args	args;
 
 	memset(&args, 0, sizeof(t_args));
 	parse_arguments(ac, av, &args);
+	
+	// Limpiar memoria asignada dinámicamente
+	cleanup_args(&args);
 	
 	return 0;
 }
