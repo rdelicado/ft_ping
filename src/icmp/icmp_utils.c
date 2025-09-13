@@ -1,0 +1,1 @@
+// Utilidades ICMP (checksum, helpers)

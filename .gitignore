@@ -1,0 +1,30 @@
+# Binarios y ejecutables
+ft_malcolm
+*.o
+*.out
+*.a
+*.txt
+
+# Carpetas de objetos
+obj/
+libft/obj/
+
+# Archivos temporales de compilación
+*.dSYM/
+*.swp
+*.swo
+*.tmp
+
+# Archivos de VSCode
+.vscode/
+.github/
+*.code-workspace
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de pruebas y logs
+*.log
+test_output.txt
+
