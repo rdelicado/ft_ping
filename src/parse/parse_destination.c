@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/12 10:39:12 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/13 15:36:50 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/13 17:03:28 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -104,8 +104,15 @@ void	validate_destination(t_args *args)
 	printf("flag: %s\n", args->flag ? args->flag : "NULL");
 	printf("destination: %s\n", args->dest);
 
+	// Verificar dirección broadcast (255.255.255.255) - igual que ping original
+	if (strcmp(args->dest, "255.255.255.255") == 0) {
+		exit(2);  // Exit code 2 como ping original
+	}
+
 	if (!is_destination(args->dest) && !is_hostname(args->dest)) {
 		printf("Error: [%s] No es una destino valido.\n", args->dest);
 		exit(2);  // Exit code 2 para errores de resolución como ping original
 	}
+	
+	// No simular ping por ahora, solo validar argumentos por ahora, solo validar argumentos
 }

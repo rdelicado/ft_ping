@@ -17,6 +17,8 @@ echo ""
 # Contadores
 TOTAL_TESTS=0
 PASSED_TESTS=0
+PING_COMPARISONS=0
+PING_MATCHES=0
 
 # Función especial para el test de ayuda con warning explicativo
 run_help_test() {
@@ -73,7 +75,7 @@ run_memory_test() {
     echo "---"
 }
 
-# Función para ejecutar y mostrar resultado con PASS/FAIL
+# Función para ejecutar y mostrar resultado con PASS/FAIL + comparación con ping original
 run_test() {
     local desc="$1"
     local cmd="$2"
@@ -115,16 +117,74 @@ run_test() {
         fi
     fi
     
+    # NUEVA FUNCIONALIDAD: Comparar con ping original si es posible
+    local ping_comparison_result=""
+    if [[ "$cmd" == *"./ft_ping"* ]] && [[ "$cmd" != *'"-?"'* ]] && [[ "$desc" != *"ayuda"* ]]; then
+        # Extraer argumentos del comando (quitar "./ft_ping " del inicio)
+        local args=$(echo "$cmd" | sed 's/.*\.\/ft_ping //')
+        # Solo comparar si hay argumentos (no casos vacíos o solo flags)
+        if [[ "$args" != "-v" ]] && [[ "$args" != "" ]]; then
+            compare_with_ping "$args" "$exit_code" "$output"
+            ping_comparison_result=" $PING_COMPARISON_STATUS"
+        fi
+    fi
+    
     if [ "$test_passed" = true ]; then
-        echo -e "${GREEN}✓ PASS${NC}"
+        echo -e "${GREEN}✓ PASS${NC}$ping_comparison_result"
         PASSED_TESTS=$((PASSED_TESTS + 1))
     else
-        echo -e "${RED}✗ FAIL${NC}"
+        echo -e "${RED}✗ FAIL${NC}$ping_comparison_result"
         echo -e "${RED}Salida real: $output${NC}"
         echo -e "${RED}Exit code: $exit_code${NC}"
         echo -e "${RED}Esperado: $expected${NC}"
     fi
     echo "---"
+}
+
+# Función para comparar con ping original
+compare_with_ping() {
+    local args="$1"
+    local ft_exit="$2"
+    local ft_output="$3"
+    
+    PING_COMPARISONS=$((PING_COMPARISONS + 1))
+    
+    # Determinar si ft_ping acepta los argumentos
+    ft_accepts=false
+    if [ $ft_exit -eq 0 ] && echo "$ft_output" | grep -q "destination:"; then
+        ft_accepts=true
+    fi
+    
+    # Probar con ping original (timeout más largo para evitar false positives)
+    ping_output=$(timeout 3s ping -c 1 -W 2 $args 2>&1)
+    ping_exit=$?
+    
+    # Determinar si ping original acepta los argumentos
+    ping_accepts=false
+    # Exit codes: 0=success, 1=timeout pero args válidos, 2=error args, 124=timeout del comando timeout
+    if [ $ping_exit -eq 0 ] || [ $ping_exit -eq 1 ]; then
+        ping_accepts=true
+    elif [ $ping_exit -eq 124 ]; then
+        # Timeout del comando timeout - asumir que args son válidos si no hay error inmediato  
+        if ! echo "$ping_output" | grep -q "ping:.*invalid\|ping:.*failure\|ping:.*error\|ping:.*unknown"; then
+            ping_accepts=true
+        fi
+    fi
+    
+    # Comparar comportamientos
+    if [ "$ft_accepts" = "$ping_accepts" ]; then
+        PING_COMPARISON_STATUS="${GREEN}[PING:✓]${NC}"
+        PING_MATCHES=$((PING_MATCHES + 1))
+    else
+        PING_COMPARISON_STATUS="${RED}[PING:✗ ft=$ft_accepts ping=$ping_accepts]${NC}"
+        # Si hay discrepancia, mostrar detalles
+        if [ "$ft_accepts" != "$ping_accepts" ]; then
+            echo -e "${YELLOW}⚠️  PING COMPARISON MISMATCH:${NC}"
+            echo -e "   ft_ping acepta: $ft_accepts (exit: $ft_exit)"
+            echo -e "   ping acepta:    $ping_accepts (exit: $ping_exit)"
+            echo -e "   ping output: ${ping_output:0:80}..."
+        fi
+    fi
 }
 
 # Función para mostrar estadísticas finales
@@ -134,6 +194,27 @@ show_stats() {
     echo -e "${GREEN}Pasadas: $PASSED_TESTS${NC}"
     echo -e "${RED}Falladas: $((TOTAL_TESTS - PASSED_TESTS))${NC}"
     
+    # Estadísticas de comparación con ping original
+    if [ $PING_COMPARISONS -gt 0 ]; then
+        echo ""
+        echo -e "${CYAN}=== Comparación con ping original ===${NC}"
+        echo -e "Comparaciones realizadas: $PING_COMPARISONS"
+        echo -e "${GREEN}Comportamiento idéntico: $PING_MATCHES${NC}"
+        echo -e "${RED}Comportamiento diferente: $((PING_COMPARISONS - PING_MATCHES))${NC}"
+        
+        PING_PERCENTAGE=$((PING_MATCHES * 100 / PING_COMPARISONS))
+        echo -e "Compatibilidad con ping: ${PING_PERCENTAGE}%"
+        
+        if [ $PING_MATCHES -eq $PING_COMPARISONS ]; then
+            echo -e "${GREEN}🎯 Comportamiento 100% compatible con ping original${NC}"
+        elif [ $PING_PERCENTAGE -ge 90 ]; then
+            echo -e "${YELLOW}⚠️  Muy buena compatibilidad (${PING_PERCENTAGE}%), revisar casos diferentes${NC}"
+        else
+            echo -e "${RED}❌ Compatibilidad baja (${PING_PERCENTAGE}%), necesita mejoras${NC}"
+        fi
+    fi
+    
+    echo ""
     if [ $PASSED_TESTS -eq $TOTAL_TESTS ]; then
         echo -e "${GREEN}¡Todas las pruebas pasaron! 🎉${NC}"
         echo -e "${CYAN}📋 Nota: Test de ayuda (-?) cumple con requisitos del subject${NC}"
@@ -224,8 +305,8 @@ run_test "Hostname inválido" "./ft_ping thisdomaindoesnotexist12345.invalid" "N
 # 21. IP malformada
 run_test "IP malformada (999.999.999.999)" "./ft_ping 999.999.999.999" "No es una destino valido"
 
-# 22. IP incompleta
-run_test "IP incompleta (192.168.1)" "./ft_ping 192.168.1" "No es una destino valido"
+# 22. IP incompleta (ahora se convierte correctamente)
+run_test "IP incompleta (192.168.1)" "./ft_ping 192.168.1" "destination: 192.168.0.1"
 
 # 23. String vacío como destino (si es posible)
 run_test "String vacío" "./ft_ping ''" "Error: falta destino"
@@ -235,10 +316,10 @@ run_test "String vacío" "./ft_ping ''" "Error: falta destino"
 # ============================================================================
 echo -e "${CYAN}=== Pruebas de IPs Inválidas ===${NC}"
 
-# Formatos incorrectos
+# Formatos que ping convierte (como ping original)
 run_test "Solo un segmento (192)" "./ft_ping 192" "destination: 0.0.0.192"
-run_test "Dos segmentos (192.168)" "./ft_ping 192.168" "No es una destino valido"
-run_test "Tres segmentos (192.168.1)" "./ft_ping 192.168.1" "No es una destino valido"
+run_test "Dos segmentos (192.168)" "./ft_ping 192.168" "destination: 192.0.0.168"
+run_test "Tres segmentos (192.168.1)" "./ft_ping 192.168.1" "destination: 192.168.0.1"
 run_test "Cinco segmentos (1.2.3.4.5)" "./ft_ping 1.2.3.4.5" "No es una destino valido"
 run_test "Punto inicial (.1.2.3.4)" "./ft_ping .1.2.3.4" "No es una destino valido"
 run_test "Punto final (1.2.3.4.)" "./ft_ping 1.2.3.4." "No es una destino valido"
@@ -258,7 +339,7 @@ run_test "IP decimal 0 (0.0.0.0)" "./ft_ping 0" "destination: 0.0.0.0"
 run_test "IP decimal localhost (2130706433)" "./ft_ping 2130706433" "destination: 127.0.0.1"
 run_test "IP decimal Google DNS (134744072)" "./ft_ping 134744072" "destination: 8.8.8.8"
 run_test "IP decimal 192.168.1.1 (3232235777)" "./ft_ping 3232235777" "destination: 192.168.1.1"
-run_test "IP decimal máxima (4294967295)" "./ft_ping 4294967295" "destination: 255.255.255.255"
+run_test "IP decimal máxima (4294967295)" "./ft_ping 4294967295" "ping broadcast"
 
 # ============================================================================
 echo -e "${CYAN}=== Pruebas de IPs Decimales Inválidas ===${NC}"
@@ -274,7 +355,7 @@ echo -e "${CYAN}=== Pruebas de Casos Edge y Raros ===${NC}"
 
 # Combinaciones extrañas de caracteres
 run_test "Números con letras (123abc)" "./ft_ping 123abc" "No es una destino valido"
-run_test "Hexadecimal (0x12345678)" "./ft_ping 0x12345678" "No es una destino valido"
+run_test "Hexadecimal (0x12345678)" "./ft_ping 0x12345678" "destination:"
 run_test "Octal (0123456)" "./ft_ping 0123456" "destination:"
 run_test "Decimal con espacios ( 123456 )" "./ft_ping ' 123456 '" "No es una destino valido"
 run_test "Decimal con ceros a la izquierda (0000123456)" "./ft_ping 0000123456" "destination:"

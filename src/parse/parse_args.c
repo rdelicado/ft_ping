@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/12 09:53:27 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/13 15:53:46 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/13 16:31:47 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -109,10 +109,12 @@ static void	print_arguments(int ac, char **av, t_args *args)
 	args->dest = destination;
 	args->dest_allocated = 0;  // Flag para saber si se asignó dinámicamente
 
-	// Soporte para IP decimal
-	if (args->dest && is_decimal_format(args->dest)) {
+	// Soporte para IP decimal y casos especiales
+	if (args->dest) {
 		char ipbuf[INET_ADDRSTRLEN];
-		if (decimal_to_ip(args->dest, ipbuf, sizeof(ipbuf))) {
+		
+		// Manejar casos especiales como "192" -> "0.0.0.192"
+		if (handle_special_decimal(args->dest, ipbuf, sizeof(ipbuf))) {
 			args->dest = strdup(ipbuf);
 			args->dest_allocated = 1;  // Marcar que se asignó dinámicamente
 		}
