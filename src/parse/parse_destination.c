@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/12 10:39:12 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/13 13:24:48 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/13 15:36:50 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,11 +58,29 @@ static bool is_hostname(char *hostname)
 		} else if (hostname[i] < '0' || hostname[i] > '9') {
 			all_digits = false;
 		}
+		/* Rechazar strings que contengan 'x' (formato hexadecimal) */
+		if (hostname[i] == 'x' || hostname[i] == 'X') {
+			return false;
+		}
 	}
 	
-	/* Si es solo números o si parece una IP incompleta (tiene puntos pero no 3), no es hostname válido */
-	if (all_digits || (dots > 0 && dots != 3))
+	/* Si es solo números, no es un hostname válido */
+	if (all_digits)
 		return false;
+	
+	/* Si parece una IP incompleta (tiene puntos pero no 3), tratarla como IP decimal si es posible */
+	if (dots > 0 && dots != 3) {
+		/* Si solo tiene números y puntos, dejar que inet_pton lo maneje */
+		bool only_digits_and_dots = true;
+		for (i = 0; hostname[i]; i++) {
+			if (hostname[i] != '.' && (hostname[i] < '0' || hostname[i] > '9')) {
+				only_digits_and_dots = false;
+				break;
+			}
+		}
+		if (only_digits_and_dots)
+			return false;  // Dejar que lo maneje is_destination o conversión decimal
+	}
 		
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET; // Solo IPv4
@@ -80,7 +98,7 @@ void	validate_destination(t_args *args)
 {
 	if (args == NULL || args->dest == NULL || args->dest[0] == '\0') {
 		printf("Error: falta destino.\n");
-		return ;
+		exit(2);  // Exit code 2 como ping original
 	}
 	
 	printf("flag: %s\n", args->flag ? args->flag : "NULL");
@@ -88,5 +106,6 @@ void	validate_destination(t_args *args)
 
 	if (!is_destination(args->dest) && !is_hostname(args->dest)) {
 		printf("Error: [%s] No es una destino valido.\n", args->dest);
+		exit(2);  // Exit code 2 para errores de resolución como ping original
 	}
 }

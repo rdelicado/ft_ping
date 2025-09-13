@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/12 09:53:27 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/13 13:09:49 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/13 15:36:50 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,7 +56,7 @@ static char	*get_destination(int ac, char **av)
 			if (destination != NULL)
 			{
 				print_error("demasiados destinos");
-				return NULL;
+				exit(2);  // Exit code 2 para demasiados argumentos
 			}
 			destination = av[i];
 		}
@@ -74,9 +74,7 @@ static void	print_arguments(int ac, char **av, t_args *args)
 
 	if (ac < 2) {
 		print_error("falta destino o opción");
-		args->flag = NULL;
-		args->dest = NULL;
-		return;
+		exit(2);
 	}
 
 	if (ac == 2 && strcmp(av[1], "-?") == 0)
@@ -94,18 +92,14 @@ static void	print_arguments(int ac, char **av, t_args *args)
 		return;
 	}
 	if (result == -1) {
-		args->flag = NULL;
-		args->dest = NULL;
-		return;
+		exit(2);  // Exit code 2 para flags inválidos
 	}
 
 	destination = get_destination(ac, av);
 	if (destination == NULL && !help)
 	{
 		print_error("falta destino");
-		args->flag = NULL;
-		args->dest = NULL;
-		return;
+		exit(2);  // Exit code 2 para falta de destino
 	}
 
 	if (verbose)
@@ -113,6 +107,14 @@ static void	print_arguments(int ac, char **av, t_args *args)
 
 	args->flag = verbose ? "-v" : NULL;
 	args->dest = destination;
+
+	// Soporte para IP decimal
+	if (args->dest && is_decimal_format(args->dest)) {
+		char ipbuf[INET_ADDRSTRLEN];
+		if (decimal_to_ip(args->dest, ipbuf, sizeof(ipbuf))) {
+			args->dest = strdup(ipbuf);
+		}
+	}
 }
 
 void	parse_arguments(int ac, char **av, t_args *args)
