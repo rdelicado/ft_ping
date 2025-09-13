@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 17:59:44 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/13 15:53:46 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/13 15:58:10 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,7 +45,6 @@ int main(int ac, char **av)
 	memset(&args, 0, sizeof(t_args));
 	parse_arguments(ac, av, &args);
 	
-	// Limpiar memoria asignada dinámicamente
 	cleanup_args(&args);
 	
 	return 0;
