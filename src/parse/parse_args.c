@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/12 09:53:27 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/14 12:03:33 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/14 13:41:14 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,7 +36,7 @@ static int	parse_flags(int ac, char **av, int *verbose, int *help)
 			return -1;  // Error
 		} else if (av[i][0] == '-') {
 			*help = 1;
-			printf("ft_ping invalid option -- '%c'\n\n", av[i][1]);
+			printf("ft_ping: invalid option -- '%c'\n\n", av[i][1]);
 			print_help();
 			return 1;
 		}

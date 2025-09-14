@@ -97,15 +97,8 @@ run_test() {
     if [ "$should_fail" = "true" ]; then
         # Esperamos que falle (exit code != 0) Y contenga el mensaje esperado
         if [ $exit_code -ne 0 ]; then
-            # Extraer mensaje después de "ft_ping:" para comparar
-            if echo "$output" | grep -q "ft_ping:.*:"; then
-                # Caso: "ft_ping: destino: mensaje"
-                msg=$(echo "$output" | sed 's/ft_ping:.*: //' | head -1)
-            else
-                # Caso: "ft_ping: mensaje"
-                msg=$(echo "$output" | sed 's/ft_ping: //' | head -1)
-            fi
-            if [[ "$msg" == "$expected" ]] || [[ "$msg" == *"$expected"* ]]; then
+            # Verificar si la salida completa contiene el mensaje esperado
+            if [[ "$output" == *"$expected"* ]]; then
                 test_passed=true
             fi
         fi
@@ -149,9 +142,16 @@ compare_with_ping() {
     PING_COMPARISONS=$((PING_COMPARISONS + 1))
     
     # No comparar para comandos sin argumentos
-    if [ -z "$args" ]; then
-        PING_COMPARISON_STATUS="${GREEN}[PING:✓]${NC}"
-        PING_MATCHES=$((PING_MATCHES + 1))
+    if [ -z "$args" ] || [ "$args" = "./ft_ping" ]; then
+        # Para comandos sin argumentos, comparar directamente los mensajes
+        ping_msg="usage error: Destination address required"
+        ft_msg=$(echo "$ft_output" | sed 's/.*ft_ping: //' | head -1)
+        if [ "$ping_msg" = "$ft_msg" ]; then
+            PING_COMPARISON_STATUS="${GREEN}[PING:✓ MSG:✓]${NC}"
+            PING_MATCHES=$((PING_MATCHES + 1))
+        else
+            PING_COMPARISON_STATUS="${RED}[PING:✓ MSG:✗ '$ping_msg' vs '$ft_msg']${NC}"
+        fi
         return
     fi
     
@@ -165,8 +165,12 @@ compare_with_ping() {
     if [ -z "$args" ]; then
         ping_output="ping: usage error: Destination address required"
         ping_exit=1
+    elif [ "$args" = "''" ]; then
+        # Caso especial para string vacío
+        ping_output=$(timeout 3s ping '' 2>&1)
+        ping_exit=$?
     else
-        ping_output=$(timeout 3s ping -c 1 -W 2 $args 2>&1)
+        ping_output=$(eval "timeout 3s ping -c 1 -W 2 $args 2>&1")
         ping_exit=$?
     fi
     
@@ -190,8 +194,14 @@ compare_with_ping() {
             normalized_ping=$(echo "$ping_output" | sed 's/ping:/ft_ping:/g')
             if echo "$normalized_ping" | grep -q "ft_ping:" && echo "$ft_output" | grep -q "ft_ping:"; then
                 # Extraer mensaje después de "ft_ping:"
-                ping_msg=$(echo "$normalized_ping" | sed 's/.*ft_ping: //' | head -1)
-                ft_msg=$(echo "$ft_output" | sed 's/.*ft_ping: //' | head -1)
+                # Caso especial para string vacío: "ft_ping: : mensaje"
+                if echo "$normalized_ping" | grep -q "ft_ping: :"; then
+                    ping_msg=$(echo "$normalized_ping" | sed 's/ft_ping: : //' | head -1)
+                    ft_msg=$(echo "$ft_output" | sed 's/ft_ping: : //' | head -1)
+                else
+                    ping_msg=$(echo "$normalized_ping" | sed 's/.*ft_ping: //' | head -1)
+                    ft_msg=$(echo "$ft_output" | sed 's/.*ft_ping: //' | head -1)
+                fi
                 if [ "$ping_msg" = "$ft_msg" ]; then
                     PING_COMPARISON_STATUS="${GREEN}[PING:✓ MSG:✓]${NC}"
                     PING_MATCHES=$((PING_MATCHES + 1))
@@ -412,11 +422,11 @@ echo ""
 echo -e "${CYAN}=== Pruebas de Compatibilidad con Ping Original ===${NC}"
 
 # Casos específicos probados para coincidir mensajes de error
-run_test "Sin argumentos" "./ft_ping" "usage error: Destination address required"
-run_test "IP inválida (192.168.1.999)" "./ft_ping 192.168.1.999" "Name or service not known"
-run_test "Hex inválido (0x)" "./ft_ping 0x" "Temporary failure in name resolution"
-run_test "Hostname inválido con caracteres válidos (0xxxx)" "./ft_ping 0xxxx" "Temporary failure in name resolution"
-run_test "Destino con caracteres inválidos (////)" "./ft_ping ////" "Name or service not known"
+run_test "Sin argumentos" "./ft_ping" "usage error: Destination address required" "true"
+run_test "IP inválida (192.168.1.999)" "./ft_ping 192.168.1.999" "Name or service not known" "true"
+run_test "Hex inválido (0x)" "./ft_ping 0x" "Temporary failure in name resolution" "true"
+run_test "Hostname inválido con caracteres válidos (0xxxx)" "./ft_ping 0xxxx" "Temporary failure in name resolution" "true"
+run_test "Destino con caracteres inválidos (////)" "./ft_ping ////" "Name or service not known" "true"
 run_test "Destino con caracteres inválidos (abc!)" "./ft_ping abc!" "Name or service not known" "true"
 run_test "IP válida (8.8.8.8)" "./ft_ping 8.8.8.8" ""  # No debe tener error
 run_test "Hostname válido (google.com)" "./ft_ping google.com" ""  # No debe tener error
