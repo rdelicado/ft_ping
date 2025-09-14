@@ -4,6 +4,7 @@ ft_malcolm
 *.out
 *.a
 *.txt
+*.md
 
 # Carpetas de objetos
 obj/

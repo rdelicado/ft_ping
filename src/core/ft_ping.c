@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 17:59:44 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/14 13:56:21 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/14 14:30:30 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,11 +45,15 @@ void	cleanup_args(t_args *args)
 int main(int ac, char **av)
 {
 	t_args	args;
+	int		sockfd;
 
 	memset(&args, 0, sizeof(t_args));
 	parse_arguments(ac, av, &args);
 	setup_signal_handler();
-	
+	sockfd = create_socket(0);
+	printf("Socket create: %d\n", sockfd);
+
+	close_socket(sockfd);
 	cleanup_args(&args);
 	
 	return 0;
