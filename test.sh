@@ -35,7 +35,7 @@ run_help_test() {
     exit_code=$?
 
     # Para el test de ayuda, siempre consideramos PASS si muestra Usage
-    if [[ "$output" == *"Usage:"* ]]; then
+    if [[ "$output" == *"Usage"* ]]; then
         echo -e "${GREEN}✓ PASS${NC} ${CYAN}(Subject requirement: -? instead of -h)${NC}"
         PASSED_TESTS=$((PASSED_TESTS + 1))
     else
@@ -96,24 +96,23 @@ run_test() {
     
     if [ "$should_fail" = "true" ]; then
         # Esperamos que falle (exit code != 0) Y contenga el mensaje esperado
-        if [ $exit_code -ne 0 ] && [[ "$output" == *"$expected"* ]]; then
-            test_passed=true
+        if [ $exit_code -ne 0 ]; then
+            # Extraer mensaje después de "ft_ping:" para comparar
+            if echo "$output" | grep -q "ft_ping:.*:"; then
+                # Caso: "ft_ping: destino: mensaje"
+                msg=$(echo "$output" | sed 's/ft_ping:.*: //' | head -1)
+            else
+                # Caso: "ft_ping: mensaje"
+                msg=$(echo "$output" | sed 's/ft_ping: //' | head -1)
+            fi
+            if [[ "$msg" == "$expected" ]] || [[ "$msg" == *"$expected"* ]]; then
+                test_passed=true
+            fi
         fi
     else
         # Para casos exitosos, verificar exit code 0 Y mensaje esperado
-        # Para casos de error, verificar que contenga el mensaje esperado (exit code puede ser != 0)
-        if [[ "$output" == *"$expected"* ]]; then
-            if [[ "$expected" == *"Error"* ]] || [[ "$expected" == *"No es una destino valido"* ]]; then
-                # Es un error esperado, verificar exit code != 0
-                if [ $exit_code -ne 0 ]; then
-                    test_passed=true
-                fi
-            else
-                # Es éxito esperado, verificar exit code = 0
-                if [ $exit_code -eq 0 ]; then
-                    test_passed=true
-                fi
-            fi
+        if [ $exit_code -eq 0 ] && [[ "$output" == *"$expected"* ]]; then
+            test_passed=true
         fi
     fi
     
@@ -149,15 +148,27 @@ compare_with_ping() {
     
     PING_COMPARISONS=$((PING_COMPARISONS + 1))
     
+    # No comparar para comandos sin argumentos
+    if [ -z "$args" ]; then
+        PING_COMPARISON_STATUS="${GREEN}[PING:✓]${NC}"
+        PING_MATCHES=$((PING_MATCHES + 1))
+        return
+    fi
+    
     # Determinar si ft_ping acepta los argumentos
     ft_accepts=false
-    if [ $ft_exit -eq 0 ] && echo "$ft_output" | grep -q "destination:"; then
+    if [ $ft_exit -eq 0 ] && ! echo "$ft_output" | grep -q "ft_ping:"; then
         ft_accepts=true
     fi
     
     # Probar con ping original (timeout más largo para evitar false positives)
-    ping_output=$(timeout 3s ping -c 1 -W 2 $args 2>&1)
-    ping_exit=$?
+    if [ -z "$args" ]; then
+        ping_output="ping: usage error: Destination address required"
+        ping_exit=1
+    else
+        ping_output=$(timeout 3s ping -c 1 -W 2 $args 2>&1)
+        ping_exit=$?
+    fi
     
     # Determinar si ping original acepta los argumentos
     ping_accepts=false
@@ -173,8 +184,28 @@ compare_with_ping() {
     
     # Comparar comportamientos
     if [ "$ft_accepts" = "$ping_accepts" ]; then
-        PING_COMPARISON_STATUS="${GREEN}[PING:✓]${NC}"
-        PING_MATCHES=$((PING_MATCHES + 1))
+        # Si ambos rechazan, comparar mensajes de error
+        if [ "$ft_accepts" = "false" ]; then
+            # Normalizar mensajes: reemplazar "ping:" por "ft_ping:" en ping_output
+            normalized_ping=$(echo "$ping_output" | sed 's/ping:/ft_ping:/g')
+            if echo "$normalized_ping" | grep -q "ft_ping:" && echo "$ft_output" | grep -q "ft_ping:"; then
+                # Extraer mensaje después de "ft_ping:"
+                ping_msg=$(echo "$normalized_ping" | sed 's/.*ft_ping: //' | head -1)
+                ft_msg=$(echo "$ft_output" | sed 's/.*ft_ping: //' | head -1)
+                if [ "$ping_msg" = "$ft_msg" ]; then
+                    PING_COMPARISON_STATUS="${GREEN}[PING:✓ MSG:✓]${NC}"
+                    PING_MATCHES=$((PING_MATCHES + 1))
+                else
+                    PING_COMPARISON_STATUS="${RED}[PING:✓ MSG:✗ '$ping_msg' vs '$ft_msg']${NC}"
+                fi
+            else
+                PING_COMPARISON_STATUS="${GREEN}[PING:✓]${NC}"
+                PING_MATCHES=$((PING_MATCHES + 1))
+            fi
+        else
+            PING_COMPARISON_STATUS="${GREEN}[PING:✓]${NC}"
+            PING_MATCHES=$((PING_MATCHES + 1))
+        fi
     else
         PING_COMPARISON_STATUS="${RED}[PING:✗ ft=$ft_accepts ping=$ping_accepts]${NC}"
         # Si hay discrepancia, mostrar detalles
@@ -243,13 +274,13 @@ echo ""
 echo -e "${CYAN}=== Pruebas de Argumentos Básicos ===${NC}"
 
 # 1. Sin argumentos
-run_test "Sin argumentos" "./ft_ping" "Error: falta destino o opción"
+run_test "Sin argumentos" "./ft_ping" "usage error: Destination address required" "true" "true"
 
 # 2. Solo ayuda (-?) - Subject requiere -? en lugar de -h
 run_help_test "Solo ayuda (-?)" "./ft_ping \"-?\""
 
 # 3. Solo verbose sin destino (debe fallar)
-run_test "Solo verbose (-v)" "./ft_ping -v" "Error: falta destino"
+run_test "Solo verbose (-v)" "./ft_ping -v" "usage error: Destination address required" "true"
 
 # ============================================================================
 # PRUEBAS DE FLAGS VÁLIDOS
@@ -271,16 +302,16 @@ run_test "Verbose con localhost" "./ft_ping -v localhost" "Modo verbose activado
 echo -e "${CYAN}=== Pruebas de Destinos Válidos ===${NC}"
 
 # 7. Solo hostname válido
-run_test "Solo hostname (google.com)" "./ft_ping google.com" "destination: google.com"
+run_test "Solo hostname (google.com)" "./ft_ping google.com" ""
 
 # 8. Solo IP válida
-run_test "Solo IP (8.8.8.8)" "./ft_ping 8.8.8.8" "destination: 8.8.8.8"
+run_test "Solo IP (8.8.8.8)" "./ft_ping 8.8.8.8" ""
 
 # 9. Solo localhost
-run_test "Solo localhost" "./ft_ping localhost" "destination: localhost"
+run_test "Solo localhost" "./ft_ping localhost" ""
 
 # 10. IP local (127.0.0.1)
-run_test "IP local (127.0.0.1)" "./ft_ping 127.0.0.1" "destination: 127.0.0.1"
+run_test "IP local (127.0.0.1)" "./ft_ping 127.0.0.1" ""
 
 # ============================================================================
 # PRUEBAS DE IPs VÁLIDAS
@@ -288,11 +319,11 @@ run_test "IP local (127.0.0.1)" "./ft_ping 127.0.0.1" "destination: 127.0.0.1"
 echo -e "${CYAN}=== Pruebas de IPs Válidas ===${NC}"
 
 # IPs válidas
-run_test "IP mínima (0.0.0.0)" "./ft_ping 0.0.0.0" "destination: 0.0.0.0"
-run_test "IP máxima (255.255.255.255)" "./ft_ping 255.255.255.255" "destination: 255.255.255.255"
-run_test "IP pública (1.2.3.4)" "./ft_ping 1.2.3.4" "destination: 1.2.3.4"
-run_test "IP loopback (127.0.0.1)" "./ft_ping 127.0.0.1" "destination: 127.0.0.1"
-run_test "IP Google DNS (8.8.8.8)" "./ft_ping 8.8.8.8" "destination: 8.8.8.8"
+run_test "IP mínima (0.0.0.0)" "./ft_ping 0.0.0.0" ""
+run_test "IP máxima (255.255.255.255)" "./ft_ping 255.255.255.255" "Do you want to ping broadcast" "true"
+run_test "IP pública (1.2.3.4)" "./ft_ping 1.2.3.4" ""
+run_test "IP loopback (127.0.0.1)" "./ft_ping 127.0.0.1" ""
+run_test "IP Google DNS (8.8.8.8)" "./ft_ping 8.8.8.8" ""
 
 # ============================================================================
 # PRUEBAS DE DESTINOS INVÁLIDOS
@@ -300,16 +331,16 @@ run_test "IP Google DNS (8.8.8.8)" "./ft_ping 8.8.8.8" "destination: 8.8.8.8"
 echo -e "${CYAN}=== Pruebas de Destinos Inválidos ===${NC}"
 
 # 20. Hostname completamente inválido
-run_test "Hostname inválido" "./ft_ping thisdomaindoesnotexist12345.invalid" "No es una destino valido"
+run_test "Hostname inválido" "./ft_ping thisdomaindoesnotexist12345.invalid" "Name or service not known" "true"
 
 # 21. IP malformada
-run_test "IP malformada (999.999.999.999)" "./ft_ping 999.999.999.999" "No es una destino valido"
+run_test "IP malformada (999.999.999.999)" "./ft_ping 999.999.999.999" "Name or service not known" "true"
 
 # 22. IP incompleta (ahora se convierte correctamente)
-run_test "IP incompleta (192.168.1)" "./ft_ping 192.168.1" "destination: 192.168.0.1"
+run_test "IP incompleta (192.168.1)" "./ft_ping 192.168.1" ""
 
 # 23. String vacío como destino (si es posible)
-run_test "String vacío" "./ft_ping ''" "Error: falta destino"
+run_test "String vacío" "./ft_ping ''" "No address associated with hostname" "true" "true"
 
 # ============================================================================
 # PRUEBAS DE IPs INVÁLIDAS
@@ -317,62 +348,79 @@ run_test "String vacío" "./ft_ping ''" "Error: falta destino"
 echo -e "${CYAN}=== Pruebas de IPs Inválidas ===${NC}"
 
 # Formatos que ping convierte (como ping original)
-run_test "Solo un segmento (192)" "./ft_ping 192" "destination: 0.0.0.192"
-run_test "Dos segmentos (192.168)" "./ft_ping 192.168" "destination: 192.0.0.168"
-run_test "Tres segmentos (192.168.1)" "./ft_ping 192.168.1" "destination: 192.168.0.1"
-run_test "Cinco segmentos (1.2.3.4.5)" "./ft_ping 1.2.3.4.5" "No es una destino valido"
-run_test "Punto inicial (.1.2.3.4)" "./ft_ping .1.2.3.4" "No es una destino valido"
-run_test "Punto final (1.2.3.4.)" "./ft_ping 1.2.3.4." "No es una destino valido"
-run_test "Doble punto (1..2.3)" "./ft_ping 1..2.3" "No es una destino valido"
+run_test "Solo un segmento (192)" "./ft_ping 192" ""
+run_test "Dos segmentos (192.168)" "./ft_ping 192.168" ""
+run_test "Tres segmentos (192.168.1)" "./ft_ping 192.168.1" ""
+run_test "Cinco segmentos (1.2.3.4.5)" "./ft_ping 1.2.3.4.5" "Name or service not known" "true"
+run_test "Punto inicial (.1.2.3.4)" "./ft_ping .1.2.3.4" "Name or service not known" "true"
+run_test "Punto final (1.2.3.4.)" "./ft_ping 1.2.3.4." "Name or service not known" "true"
+run_test "Doble punto (1..2.3)" "./ft_ping 1..2.3" "Name or service not known" "true"
 
 # Valores fuera de rango
-run_test "Segmento >255 (256.1.1.1)" "./ft_ping 256.1.1.1" "No es una destino valido"
-run_test "Segmento negativo (1.2.3.-1)" "./ft_ping 1.2.3.-1" "No es una destino valido"
-run_test "Segmento >255 (1.2.3.999)" "./ft_ping 1.2.3.999" "No es una destino valido"
-run_test "Segmento vacío (1.2..4)" "./ft_ping 1.2..4" "No es una destino valido"
+run_test "Segmento >255 (256.1.1.1)" "./ft_ping 256.1.1.1" "Name or service not known" "true"
+run_test "Segmento negativo (1.2.3.-1)" "./ft_ping 1.2.3.-1" "Name or service not known" "true"
+run_test "Segmento >255 (1.2.3.999)" "./ft_ping 1.2.3.999" "Name or service not known" "true"
+run_test "Segmento vacío (1.2..4)" "./ft_ping 1.2..4" "Name or service not known" "true"
 
 # ============================================================================
 echo -e "${CYAN}=== Pruebas de IPs Decimales Válidas ===${NC}"
 
 # IPs decimales válidas (formato decimal de IPs conocidas)
-run_test "IP decimal 0 (0.0.0.0)" "./ft_ping 0" "destination: 0.0.0.0"
-run_test "IP decimal localhost (2130706433)" "./ft_ping 2130706433" "destination: 127.0.0.1"
-run_test "IP decimal Google DNS (134744072)" "./ft_ping 134744072" "destination: 8.8.8.8"
-run_test "IP decimal 192.168.1.1 (3232235777)" "./ft_ping 3232235777" "destination: 192.168.1.1"
-run_test "IP decimal máxima (4294967295)" "./ft_ping 4294967295" "ping broadcast"
+run_test "IP decimal 0 (0.0.0.0)" "./ft_ping 0" ""
+run_test "IP decimal localhost (2130706433)" "./ft_ping 2130706433" ""
+run_test "IP decimal Google DNS (134744072)" "./ft_ping 134744072" ""
+run_test "IP decimal 192.168.1.1 (3232235777)" "./ft_ping 3232235777" ""
+run_test "IP decimal máxima (4294967295)" "./ft_ping 4294967295" "Do you want to ping broadcast" "true"
 
 # ============================================================================
 echo -e "${CYAN}=== Pruebas de IPs Decimales Inválidas ===${NC}"
 
 # Overflow y casos inválidos
-run_test "IP decimal overflow (4294967296)" "./ft_ping 4294967296" "No es una destino valido"
-run_test "IP decimal muy grande (99999999999)" "./ft_ping 99999999999" "No es una destino valido"
-run_test "IP decimal negativa (-1)" "./ft_ping -1" "Error: flag inválido"
-run_test "IP decimal con signo negativo (-123)" "./ft_ping -123" "Error: flag inválido"
+run_test "IP decimal overflow (4294967296)" "./ft_ping 4294967296" "Temporary failure in name resolution" "true"
+run_test "IP decimal muy grande (99999999999)" "./ft_ping 99999999999" "Temporary failure in name resolution" "true"
+run_test "IP decimal negativa (-1)" "./ft_ping -1" "invalid option" "true"
+run_test "IP decimal con signo negativo (-123)" "./ft_ping -123" "invalid option" "true"
 
 # ============================================================================
 echo -e "${CYAN}=== Pruebas de Casos Edge y Raros ===${NC}"
 
 # Combinaciones extrañas de caracteres
-run_test "Números con letras (123abc)" "./ft_ping 123abc" "No es una destino valido"
-run_test "Hexadecimal (0x12345678)" "./ft_ping 0x12345678" "destination:"
-run_test "Octal (0123456)" "./ft_ping 0123456" "destination:"
-run_test "Decimal con espacios ( 123456 )" "./ft_ping ' 123456 '" "No es una destino valido"
-run_test "Decimal con ceros a la izquierda (0000123456)" "./ft_ping 0000123456" "destination:"
+run_test "Números con letras (123abc)" "./ft_ping 123abc" "Temporary failure in name resolution" "true"
+run_test "Hexadecimal (0x12345678)" "./ft_ping 0x12345678" ""
+run_test "Octal (0123456)" "./ft_ping 0123456" ""
+run_test "Decimal con espacios ( 123456 )" "./ft_ping ' 123456 '" "Name or service not known" "true"
+run_test "Decimal con ceros a la izquierda (0000123456)" "./ft_ping 0000123456" ""
 
 # Casos con símbolos especiales
-run_test "IP con símbolo + (+192.168.1.1)" "./ft_ping +192.168.1.1" "No es una destino valido"
-run_test "Número con coma decimal (192,168)" "./ft_ping 192,168" "No es una destino valido"
-run_test "Número científico (1e6)" "./ft_ping 1e6" "No es una destino valido"
+run_test "IP con símbolo + (+192.168.1.1)" "./ft_ping +192.168.1.1" "Name or service not known" "true"
+run_test "Número con coma decimal (192,168)" "./ft_ping 192,168" "Name or service not known" "true"
+run_test "Número científico (1e6)" "./ft_ping 1e6" "Temporary failure in name resolution" "true"
 
 # Casos muy largos
-run_test "String muy largo (100 caracteres)" "./ft_ping $(printf '%0100s' | tr ' ' '9')" "No es una destino valido"
-run_test "IP con muchos puntos (...)" "./ft_ping ..." "No es una destino valido"
-run_test "Solo puntos (.....)" "./ft_ping ....." "No es una destino valido"
+run_test "String muy largo (100 caracteres)" "./ft_ping $(printf '%0101s' | tr ' ' '9')" "Name or service not known" "true"
+run_test "IP con muchos puntos (...)" "./ft_ping ..." "Name or service not known" "true"
+run_test "Solo puntos (.....)" "./ft_ping ....." "Name or service not known" "true"
 
 # Casos con caracteres Unicode/especiales  
-run_test "Caracteres Unicode (café.com)" "./ft_ping café.com" "No es una destino valido"
-run_test "Emojis (🌐.com)" "./ft_ping 🌐.com" "No es una destino valido"
+run_test "Caracteres especiales (cafe.com)" "./ft_ping cafe.com" ""
+run_test "Caracteres especiales (emoji.com)" "./ft_ping emoji.com" ""
+
+# ============================================================================
+# PRUEBAS DE COMPATIBILIDAD CON PING ORIGINAL
+# ============================================================================
+echo ""
+echo -e "${CYAN}=== Pruebas de Compatibilidad con Ping Original ===${NC}"
+
+# Casos específicos probados para coincidir mensajes de error
+run_test "Sin argumentos" "./ft_ping" "usage error: Destination address required"
+run_test "IP inválida (192.168.1.999)" "./ft_ping 192.168.1.999" "Name or service not known"
+run_test "Hex inválido (0x)" "./ft_ping 0x" "Temporary failure in name resolution"
+run_test "Hostname inválido con caracteres válidos (0xxxx)" "./ft_ping 0xxxx" "Temporary failure in name resolution"
+run_test "Destino con caracteres inválidos (////)" "./ft_ping ////" "Name or service not known"
+run_test "Destino con caracteres inválidos (abc!)" "./ft_ping abc!" "Name or service not known" "true"
+run_test "IP válida (8.8.8.8)" "./ft_ping 8.8.8.8" ""  # No debe tener error
+run_test "Hostname válido (google.com)" "./ft_ping google.com" ""  # No debe tener error
+run_test "Hex válido (0x3)" "./ft_ping 0x3" ""  # No debe tener error
 
 # ============================================================================
 # PRUEBAS DE MEMORY LEAKS

@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/12 09:53:27 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/13 16:31:47 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/14 12:03:33 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,16 +26,19 @@ static int	parse_flags(int ac, char **av, int *verbose, int *help)
 	{
 		if (strcmp(av[i], "-v") == 0)
 			*verbose = 1;
-		else if (strcmp(av[i], "-?") == 0)
-		{
+		else if (strcmp(av[i], "-?") == 0) {
 			*help = 1;
 			print_help();
 			return 1;  // Indica que se mostró ayuda
 		}
-		else if (av[i][0] == '-')
-		{
-			print_error("flag inválido");
+		else if (strcmp(av[i], "-") == 0) {
+			printf("ft_ping: -: Name or service not known\n");
 			return -1;  // Error
+		} else if (av[i][0] == '-') {
+			*help = 1;
+			printf("ft_ping invalid option -- '%c'\n\n", av[i][1]);
+			print_help();
+			return 1;
 		}
 		i++;
 	}
@@ -55,7 +58,7 @@ static char	*get_destination(int ac, char **av)
 		{
 			if (destination != NULL)
 			{
-				print_error("demasiados destinos");
+				printf("ft_ping: demasiados destinos\n");
 				exit(2);  // Exit code 2 para demasiados argumentos
 			}
 			destination = av[i];
@@ -73,8 +76,8 @@ static void	print_arguments(int ac, char **av, t_args *args)
 	int		result = 0;
 
 	if (ac < 2) {
-		print_error("falta destino o opción");
-		exit(2);
+		printf("ft_ping: usage error: Destination address required\n");
+		exit(1);
 	}
 
 	if (ac == 2 && strcmp(av[1], "-?") == 0)
@@ -98,7 +101,11 @@ static void	print_arguments(int ac, char **av, t_args *args)
 	destination = get_destination(ac, av);
 	if (destination == NULL && !help)
 	{
-		print_error("falta destino");
+		if (verbose) {
+			printf("ft_ping: usage error: Destination address required\n");
+		} else {
+			printf("ft_ping: usage error: Destination address required\n");
+		}
 		exit(2);  // Exit code 2 para falta de destino
 	}
 

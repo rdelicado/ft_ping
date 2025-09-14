@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 17:59:44 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/13 15:58:10 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/14 10:17:40 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,13 +15,17 @@
 void	print_help(void)
 {
 	const char	*help[] = {
-		"Usage: ft_ping [options] <destination>",
+		"Usage\n"
+		"  ft_ping [options] <destination>",
+		"\n"
 		"Options:",
-		" -v		: verbose output",
-		" -?		: show this help message",
+		"  <destination>		DNS name or IP address",
+		"  -v			verbose output",
+		"  -?			print help and exit",
 		"",
 		"Example:",
-		" sudo ./ft_ping google.com",
+		"  sudo ./ft_ping google.com",
+		"  sudo ./ft_ping -v google.com",
 		NULL
 	};
 
