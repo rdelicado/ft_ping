@@ -1,35 +1,20 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   ft_ping.h                                          :+:      :+:    :+:   */
+/*   signal.h                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/09/11 18:06:23 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/14 14:04:22 by rdelicad         ###   ########.fr       */
+/*   Created: 2025/09/14 13:58:39 by rdelicad          #+#    #+#             */
+/*   Updated: 2025/09/14 14:01:14 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
+#ifndef SIGNAL_H
+#define SIGNAL_H
 
-#ifndef MAIN_H
-#define MAIN_H
+#include "ft_ping.h"
 
-# include "type.h"
-# include "parse.h"
-# include "signals.h"
-
-# include <stdio.h>
-# include <string.h>
-# include <stdlib.h>
-# include <stdbool.h>
-# include <stddef.h>
-# include <ctype.h>
-# include <signal.h>
-# include <netdb.h>
-# include <arpa/inet.h>
-# include <sys/socket.h>
-
-void	print_help(void);
-
+void	setup_signal_handler();
 
 #endif

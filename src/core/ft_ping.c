@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 17:59:44 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/14 10:17:40 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/14 13:56:21 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,6 +48,7 @@ int main(int ac, char **av)
 
 	memset(&args, 0, sizeof(t_args));
 	parse_arguments(ac, av, &args);
+	setup_signal_handler();
 	
 	cleanup_args(&args);
 	
