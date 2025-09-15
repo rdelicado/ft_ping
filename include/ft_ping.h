@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 18:06:23 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/15 09:57:40 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/15 18:39:16 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,13 +18,16 @@
 # include "parse.h"
 # include "signals.h"
 # include "net.h"
+# include "icmp.h"
 
 # include <unistd.h>
 # include <stdio.h>
 # include <string.h>
 # include <stdlib.h>
+# include <stdint.h>
 # include <stdbool.h>
 # include <stddef.h>
+# include <errno.h>
 # include <ctype.h>
 # include <signal.h>
 # include <arpa/inet.h>
