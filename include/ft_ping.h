@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 18:06:23 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/14 15:03:30 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/15 09:57:40 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,7 +27,6 @@
 # include <stddef.h>
 # include <ctype.h>
 # include <signal.h>
-# include <netdb.h>
 # include <arpa/inet.h>
 # include <sys/socket.h>
 # include <netinet/in.h>
