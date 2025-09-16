@@ -6,13 +6,13 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/15 17:42:42 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/15 17:44:44 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/16 17:50:17 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ft_ping.h"
 
-// Función para calcular el checksum ICMP (suma de 16 bits complementada)
+// Function to calculate ICMP checksum (16-bit one's complement sum)
 uint16_t icmp_checksum(const void *buf, int len)
 {
     uint32_t sum = 0;

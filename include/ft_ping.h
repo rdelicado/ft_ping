@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 18:06:23 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/16 09:38:23 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/16 16:16:48 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,7 @@
 # include "net.h"
 # include "icmp.h"
 # include "stats.h"
+# include "utils.h"
 
 # include <unistd.h>
 # include <stdio.h>

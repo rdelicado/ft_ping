@@ -6,53 +6,64 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/14 15:02:55 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/15 09:53:30 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/16 17:50:17 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ft_ping.h"
 
-int	resolve_ip(char *dest, struct in_addr *out_addr)
+static int	is_valid_ip_format(const char *dest, int *dots)
 {
-	struct in_addr	addr;
-	int i, dots;
-	
-	if (dest == NULL || dest[0] == '\0')
+	int i;
+	*dots = 0;
+
+	for (i = 0; dest[i]; i++) {
+		if (dest[i] == '.')
+			(*dots)++;
+		else if (dest[i] < '0' || dest[i] > '9')
+			return 0;
+	}
+	return (*dots == 3);
+}
+
+static int	handle_hex_ip(char *dest, struct in_addr *out_addr)
+{
+	if (dest[0] != '0' || dest[1] != 'x')
 		return 0;
 
-	/* Manejar formato hexadecimal (ej. "0x3" -> "0.0.0.3") */
-	if (dest[0] == '0' && dest[1] == 'x') {
-		char *endptr;
-		unsigned long ip = strtoul(dest + 2, &endptr, 16);
-		if (endptr == dest + 2) return 0; /* No dígitos después de 0x */
-		if (*endptr == '\0' && ip <= 0xFFFFFFFF) {
-			/* Convertir a formato IP decimal */
-			sprintf(dest, "%lu.%lu.%lu.%lu",
-				(ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, ip & 0xFF);
-			/* Ahora validar como IP normal y guardar IP binaria */
-			if (inet_pton(AF_INET, dest, &addr) == 1) {
-				if (out_addr) *out_addr = addr;
-				return 1;
-			}
-		}
-		return 0; /* Hex inválido */
-	}
-	
-	/* Verificar que solo contenga dígitos y puntos */
-	dots = 0;
-	for (i = 0; dest[i]; i++) {
-		if (dest[i] == '.') {
-			dots++;
-		} else if (dest[i] < '0' || dest[i] > '9') {
-			return 0; /* Contiene caracteres no válidos para IP */
-		}
-	}
-	
-	/* Una IP válida debe tener exactamente 3 puntos */
-	if (dots != 3)
+	char *endptr;
+	unsigned long ip = strtoul(dest + 2, &endptr, 16);
+	if (endptr == dest + 2 || *endptr != '\0' || ip > 0xFFFFFFFF)
 		return 0;
-	
-	/* Usar inet_pton para validación final y guardar IP binaria */
+
+	/* Convertir a formato IP decimal */
+	sprintf(dest, "%lu.%lu.%lu.%lu",
+		(ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, ip & 0xFF);
+
+	struct in_addr addr;
+	if (inet_pton(AF_INET, dest, &addr) == 1) {
+		if (out_addr) *out_addr = addr;
+		return 1;
+	}
+	return 0;
+}
+
+int	resolve_ip(char *dest, struct in_addr *out_addr)
+{
+	if (!dest || dest[0] == '\0')
+		return 0;
+
+	/* Manejar formato hexadecimal */
+	if (handle_hex_ip(dest, out_addr))
+		return 1;
+
+	/* Check valid IP format */
+	int dots;
+	if (!is_valid_ip_format(dest, &dots))
+		return 0;
+
+	/* Use inet_pton for final validation */
+	struct in_addr addr;
 	if (inet_pton(AF_INET, dest, &addr) == 1) {
 		if (out_addr) *out_addr = addr;
 		return 1;
@@ -68,7 +79,7 @@ int	resolve_hostname(char *hostname, struct in_addr *out_addr)
 	if (hostname == NULL || hostname[0] == '\0')
 		return 0;
 	
-	/* Si es solo números, no es un hostname válido */
+	/* If it's only numbers, it's not a valid hostname */
 	int all_digits = 1;
 	dots = 0;
 	for (i = 0; hostname[i]; i++) {
@@ -79,13 +90,13 @@ int	resolve_hostname(char *hostname, struct in_addr *out_addr)
 		}
 	}
 	
-	/* Si es solo números, no es un hostname válido */
+	/* If it's only numbers, it's not a valid hostname */
 	if (all_digits)
 		return 0;
 	
-	/* Si parece una IP incompleta (tiene puntos pero no 3), tratarla como IP decimal si es posible */
+	/* If it looks like an incomplete IP (has dots but not 3), treat it as decimal IP if possible */
 	if (dots > 0 && dots != 3) {
-		/* Si solo tiene números y puntos, dejar que inet_pton lo maneje */
+		/* If it only has numbers and dots, let inet_pton handle it */
 		int only_digits_and_dots = 1;
 		for (i = 0; hostname[i]; i++) {
 			if (hostname[i] != '.' && (hostname[i] < '0' || hostname[i] > '9')) {
@@ -94,7 +105,7 @@ int	resolve_hostname(char *hostname, struct in_addr *out_addr)
 			}
 		}
 		if (only_digits_and_dots)
-			return 0;  // Dejar que lo maneje is_destination o conversión decimal
+			return 0;  // Let is_destination or decimal conversion handle it
 	}
 		
 	memset(&hints, 0, sizeof(hints));

@@ -6,14 +6,14 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/15 18:38:36 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/16 09:51:18 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/16 17:50:17 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ft_ping.h"
 #include <errno.h>
 
-double	icmp_receive(int sockfd, uint16_t id, struct timeval *send_time)
+double	icmp_receive(int sockfd, uint16_t id, struct timeval *send_time, int verbose)
 {
 	char				buffer[1024];
 	struct sockaddr_in	addr;
@@ -26,7 +26,7 @@ double	icmp_receive(int sockfd, uint16_t id, struct timeval *send_time)
 	int					attempts = 0;
 	const int			max_attempts = 3;
 
-	// Configurar timeout más largo para localhost y redes rápidas
+	// Configure longer timeout for localhost and fast networks
 	timeout.tv_sec = 0;
 	timeout.tv_usec = 500000; // 500ms
 	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
@@ -47,7 +47,7 @@ double	icmp_receive(int sockfd, uint16_t id, struct timeval *send_time)
 			return -1.0;
 		}
 
-		// Paso 3: Marcar cuándo llegó
+		// Step 3: Mark when it arrived
 		gettimeofday(&recv_time, NULL);
 
 		// Paso 4: Interpretar el paquete como cabecera IP
@@ -56,18 +56,27 @@ double	icmp_receive(int sockfd, uint16_t id, struct timeval *send_time)
 		// Paso 5: Encontrar la parte ICMP dentro del paquete
 		icmp = (struct icmphdr *)(buffer + (ip->ihl * 4));
 
-		// Paso 6: ¿Es la respuesta que esperamos?
+		// Step 6: Is this the response we expect?
 		if (icmp->type == ICMP_ECHOREPLY && icmp->un.echo.id == id) {
-			// Paso 7: Calcular cuánto tardó
+			// Step 7: Calculate how long it took
 			double rtt = (recv_time.tv_sec - send_time->tv_sec) * 1000.0 +
 							(recv_time.tv_usec - send_time->tv_usec) / 1000.0;
 
 			// Paso 8: Mostrar la respuesta
-			printf("64 bytes from %s: icmp_seq=%d ttl=%d time=%.1f ms\n",
-				inet_ntoa(addr.sin_addr),
-				icmp->un.echo.sequence,
-				ip->ttl,
-				rtt);
+			if (verbose) {
+				printf("64 bytes from %s: icmp_seq=%d ident=%d ttl=%d time=%.3f ms\n",
+					inet_ntoa(addr.sin_addr),
+					icmp->un.echo.sequence,
+					id,
+					ip->ttl,
+					rtt);
+			} else {
+				printf("64 bytes from %s: icmp_seq=%d ttl=%d time=%.1f ms\n",
+					inet_ntoa(addr.sin_addr),
+					icmp->un.echo.sequence,
+					ip->ttl,
+					rtt);
+			}
 			
 			return rtt; // ¡Devolver el RTT calculado!
 		}
@@ -75,5 +84,5 @@ double	icmp_receive(int sockfd, uint16_t id, struct timeval *send_time)
 		attempts++;
 	}
 
-	return -1.0; // Timeout después de varios intentos
+	return -1.0; // Timeout after several attempts
 }

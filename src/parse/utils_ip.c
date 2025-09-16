@@ -1,6 +1,6 @@
 #include "ft_ping.h"
 
-// Devuelve true si la cadena es un número decimal válido (sin puntos)
+// Returns true if the string is a valid decimal number (without dots)
 bool is_decimal_format(const char *ip) {
 	if (!ip || !*ip) return false;
 	for (int i = 0; ip[i]; i++)
@@ -9,12 +9,12 @@ bool is_decimal_format(const char *ip) {
 	return true;
 }
 
-// Convierte decimal a notación por puntos. Devuelve true si OK, false si error.
+// Converts decimal to dotted notation. Returns true if OK, false if error.
 bool decimal_to_ip(const char *dec, char *out, size_t outlen) {
 	char *endptr;
 	unsigned long val = strtoul(dec, &endptr, 10);
 	
-	// Verificar que se convirtió toda la cadena y no hay overflow
+	// Verify that the entire string was converted and there's no overflow
 	if (*endptr != '\0' || val > 0xFFFFFFFFUL) return false;
 	
 	struct in_addr addr;
@@ -70,7 +70,7 @@ bool handle_special_decimal(const char *input, char *out, size_t outlen) {
 		}
 		free(str_copy);
 		
-		// Convertir según número de partes como ping original
+		// Convert according to number of parts like original ping
 		if (dots == 1) {
 			// 192.168 -> 192.0.0.168
 			if (snprintf(out, outlen, "%lu.0.0.%lu", parts[0], parts[1]) >= (int)outlen) return false;
@@ -81,7 +81,7 @@ bool handle_special_decimal(const char *input, char *out, size_t outlen) {
 		return true;
 	}
 	
-	// Verificar si es solo dígitos (decimal puro)
+	// Check if it's only digits (pure decimal)
 	for (int i = 0; input[i]; i++) {
 		if (!isdigit((unsigned char)input[i])) {
 			return false;
@@ -91,13 +91,13 @@ bool handle_special_decimal(const char *input, char *out, size_t outlen) {
 	val = strtoul(input, &endptr, 10);
 	if (*endptr != '\0') return false;
 	
-	// Casos especiales como ping:
-	// 192 -> 0.0.0.192 (números de 0-255)
+	// Special cases like ping:
+	// 192 -> 0.0.0.192 (numbers 0-255)
 	if (val <= 255) {
 		if (snprintf(out, outlen, "0.0.0.%lu", val) >= (int)outlen) return false;
 		return true;
 	} 
-	// Conversión decimal normal para números más grandes
+	// Normal decimal conversion for larger numbers
 	else if (val <= 0xFFFFFFFFUL) {
 		struct in_addr addr;
 		addr.s_addr = htonl(val);

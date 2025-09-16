@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/16 09:29:58 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/16 09:41:55 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/16 17:37:35 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,13 +39,17 @@ void	update_stats_packet_received(t_ping_stats *stats, double rtt)
 {
 	if (!stats)
 		return ;
+
 	stats->packets_received++;
 	stats->sum_rtt += rtt;
 	stats->sum_rtt_squared += (rtt * rtt);
+
 	if (rtt < stats->min_rtt)
 		stats->min_rtt = rtt;
 	if (rtt > stats->max_rtt)
 		stats->max_rtt = rtt;
+
+	gettimeofday(&stats->end_time, NULL);
 }
 
 double	calculate_packet_loss(t_ping_stats *stats)
@@ -91,28 +95,36 @@ long	calculate_total_time(t_ping_stats *stats)
 	return (total_ms);
 }
 
-void	print_final_stats(t_ping_stats *stats, const char *dest)
+static void	print_packet_summary(t_ping_stats *stats)
 {
-	double	packet_loss;
-	double	avg_rtt;
-	double	stddev_rtt;
-	long	total_time;
+	double packet_loss = calculate_packet_loss(stats);
 
-	if (!stats || !dest)
-		return ;
-	packet_loss = calculate_packet_loss(stats);
-	avg_rtt = calculate_avg_rtt(stats);
-	stddev_rtt = calculate_stddev_rtt(stats);
-	total_time = calculate_total_time(stats);
-	printf("\n--- %s ping statistics ---\n", dest);
 	if (packet_loss == 0.0)
 		printf("%d packets transmitted, %d received, 0%% packet loss",
 			stats->packets_transmitted, stats->packets_received);
 	else
 		printf("%d packets transmitted, %d received, %.0f%% packet loss",
 			stats->packets_transmitted, stats->packets_received, packet_loss);
-	printf(", time %ldms\n", total_time);
-	if (stats->packets_received > 0)
+}
+
+static void	print_rtt_stats(t_ping_stats *stats)
+{
+	if (stats->packets_received > 0) {
+		double avg_rtt = calculate_avg_rtt(stats);
+		double stddev_rtt = calculate_stddev_rtt(stats);
 		printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n",
 			stats->min_rtt, avg_rtt, stats->max_rtt, stddev_rtt);
+	}
+}
+
+void	print_final_stats(t_ping_stats *stats, const char *dest)
+{
+	if (!stats || !dest)
+		return ;
+
+	long total_time = calculate_total_time(stats);
+	printf("\n--- %s ping statistics ---\n", dest);
+	print_packet_summary(stats);
+	printf(", time %ldms\n", total_time);
+	print_rtt_stats(stats);
 }

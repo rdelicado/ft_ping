@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/12 10:39:12 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/15 09:50:37 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/16 17:50:17 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,7 +19,7 @@ void	validate_destination(t_args *args)
 		exit(2);
 	}
 	
-	// Verificar dirección broadcast (255.255.255.255) - igual que ping original
+	// Check broadcast address (255.255.255.255) - same as original ping
 	if (strcmp(args->dest, "255.255.255.255") == 0) {
 		printf("ft_ping: Do you want to ping broadcast? Then -b. If not, check your local firewall rules\n");
 		exit(2);
