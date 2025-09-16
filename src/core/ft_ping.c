@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 17:59:44 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/15 19:10:29 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/16 09:48:48 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,18 +51,18 @@ void	convert_ip_binary(int sockfd, t_args *args, struct sockaddr_in *dest_addr)
 		cleanup_args(args);
 		exit(2);
 	}
-
-	// mostrar ip resuelta
-	printf("PING %s (%s): 56 data bytes\n", args->dest, inet_ntoa(dest_addr->sin_addr));
 }
 
-void	ping_loop(int sockfd, struct sockaddr_in *dest_addr)
+void	ping_loop(int sockfd, struct sockaddr_in *dest_addr, char *dest)
 {
     struct timeval	send_time;
     uint16_t		packet_id;
     uint16_t		sequence;
     int				seq_counter;
+    t_ping_stats	stats;
+    double			rtt_ms;
 
+    init_stats(&stats);
     seq_counter = 1;
     while (!g_stop)
     {
@@ -70,16 +70,16 @@ void	ping_loop(int sockfd, struct sockaddr_in *dest_addr)
         gettimeofday(&send_time, NULL);
         
         // Enviar paquete ICMP
-        if (icmp_request(sockfd, dest_addr, &packet_id, &sequence, seq_counter) == 0)
-        {
+        if (icmp_request(sockfd, dest_addr, &packet_id, &sequence, seq_counter) == 0) {
+            update_stats_packet_sent(&stats);
             // Esperar y procesar respuesta
-            if (icmp_receive(sockfd, packet_id, &send_time) < 0)
-            {
+            rtt_ms = icmp_receive(sockfd, packet_id, &send_time);
+            if (rtt_ms >= 0.0) {
+                update_stats_packet_received(&stats, rtt_ms);
+            } else {
                 printf("Request timeout for icmp_seq=%d\n", seq_counter);
             }
-        }
-        else
-        {
+        } else {
             printf("Error enviando paquete icmp_seq=%d\n", seq_counter);
         }
         
@@ -89,6 +89,7 @@ void	ping_loop(int sockfd, struct sockaddr_in *dest_addr)
         seq_counter++;
         sleep(1);
     }
+    print_final_stats(&stats, dest);
 }
 
 int main(int ac, char **av)
@@ -109,7 +110,7 @@ int main(int ac, char **av)
     convert_ip_binary(sockfd, &args, &dest_addr);
     
     // Bucle principal de ping
-    ping_loop(sockfd, &dest_addr);
+    ping_loop(sockfd, &dest_addr, args.dest);
     
     close_socket(sockfd);
     cleanup_args(&args);

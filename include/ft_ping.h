@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 18:06:23 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/15 18:39:16 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/16 09:38:23 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,6 +19,7 @@
 # include "signals.h"
 # include "net.h"
 # include "icmp.h"
+# include "stats.h"
 
 # include <unistd.h>
 # include <stdio.h>
@@ -33,6 +34,7 @@
 # include <arpa/inet.h>
 # include <sys/socket.h>
 # include <netinet/in.h>
+# include <math.h>
 
 void	print_help(void);
 

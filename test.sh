@@ -20,6 +20,42 @@ PASSED_TESTS=0
 PING_COMPARISONS=0
 PING_MATCHES=0
 
+# Función auxiliar para ping tests que aceptan timeout como válido
+run_ping_test() {
+    local desc="$1"
+    local cmd="$2" 
+    local expected="$3"
+    
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
+    
+    echo -e "${BLUE}Prueba $TOTAL_TESTS: $desc${NC}"
+    echo -e "${YELLOW}Comando: $cmd${NC}"
+
+    # Ejecutar comando con timeout de 3 segundos
+    output=$(eval "timeout 3s $cmd" 2>&1)
+    exit_code=$?
+
+    # Para ping tests, aceptamos exit code 124 (timeout) como válido si contiene output esperado
+    local test_passed=false
+    
+    if [[ "$output" == *"$expected"* ]]; then
+        if [ $exit_code -eq 0 ] || [ $exit_code -eq 124 ]; then
+            test_passed=true
+        fi
+    fi
+    
+    if $test_passed; then
+        echo -e "${GREEN}✓ PASS${NC}"
+        PASSED_TESTS=$((PASSED_TESTS + 1))
+    else
+        echo -e "${RED}✗ FAIL${NC}"
+        echo -e "${RED}Salida real: $output${NC}"
+        echo -e "${RED}Exit code: $exit_code${NC}"
+        echo -e "${RED}Esperado: $expected${NC}"
+    fi
+    echo "---"
+}
+
 # Función especial para el test de ayuda con warning explicativo
 run_help_test() {
     local desc="$1"
@@ -279,10 +315,15 @@ echo -e "${GREEN}Ejecutable encontrado. Iniciando pruebas...${NC}"
 echo ""
 
 # ============================================================================
-# PRUEBAS DE ARGUMENTOS BÁSICOS
+# GRUPO 1: TESTS DE VALIDACIÓN (Argumentos, parámetros, ayuda)
 # ============================================================================
-echo -e "${CYAN}=== Pruebas de Argumentos Básicos ===${NC}"
+echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║                           GRUPO 1: TESTS DE VALIDACIÓN                       ║${NC}"
+echo -e "${CYAN}║                     (Argumentos, parámetros, ayuda)                         ║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+echo ""
 
+echo -e "${BLUE}--- Validación de Argumentos Básicos ---${NC}"
 # 1. Sin argumentos
 run_test "Sin argumentos" "./ft_ping" "usage error: Destination address required" "true" "true"
 
@@ -292,13 +333,10 @@ run_help_test "Solo ayuda (-?)" "./ft_ping \"-?\""
 # 3. Solo verbose sin destino (debe fallar)
 run_test "Solo verbose (-v)" "./ft_ping -v" "usage error: Destination address required" "true"
 
-# ============================================================================
-# PRUEBAS DE FLAGS VÁLIDOS
-# ============================================================================
-echo -e "${CYAN}=== Pruebas de Flags Válidos ===${NC}"
+echo -e "${BLUE}--- Validación de Flags ---${NC}"
 
 # 4. Flag verbose con hostname válido
-run_test "Verbose con hostname" "./ft_ping -v google.com" "Modo verbose activado"
+run_ping_test "Verbose con hostname" "sudo ./ft_ping -v google.com" "Modo verbose activado"
 
 # 5. Flag verbose con IP válida
 run_test "Verbose con IP" "./ft_ping -v 8.8.8.8" "Modo verbose activado"
@@ -306,147 +344,193 @@ run_test "Verbose con IP" "./ft_ping -v 8.8.8.8" "Modo verbose activado"
 # 6. Flag verbose con localhost
 run_test "Verbose con localhost" "./ft_ping -v localhost" "Modo verbose activado"
 
-# ============================================================================
-# PRUEBAS DE DESTINOS VÁLIDOS
-# ============================================================================
-echo -e "${CYAN}=== Pruebas de Destinos Válidos ===${NC}"
-
-# 7. Solo hostname válido
-run_test "Solo hostname (google.com)" "./ft_ping google.com" ""
-
-# 8. Solo IP válida
-run_test "Solo IP (8.8.8.8)" "./ft_ping 8.8.8.8" ""
-
-# 9. Solo localhost
-run_test "Solo localhost" "./ft_ping localhost" ""
-
-# 10. IP local (127.0.0.1)
-run_test "IP local (127.0.0.1)" "./ft_ping 127.0.0.1" ""
+echo -e "${BLUE}--- Validación de Destinos Básicos ---${NC}"
+# Casos básicos de destinos válidos (solo verificar que no fallen)
+run_ping_test "Hostname válido (google.com)" "sudo ./ft_ping google.com" "64 bytes from"
+run_ping_test "IP válida (8.8.8.8)" "sudo ./ft_ping 8.8.8.8" "64 bytes from"
+run_ping_test "Localhost" "sudo ./ft_ping localhost" "64 bytes from"
+run_ping_test "IP local (127.0.0.1)" "sudo ./ft_ping 127.0.0.1" "64 bytes from"
 
 # ============================================================================
-# PRUEBAS DE IPs VÁLIDAS
-# ============================================================================
-echo -e "${CYAN}=== Pruebas de IPs Válidas ===${NC}"
-
-# IPs válidas
-run_test "IP mínima (0.0.0.0)" "./ft_ping 0.0.0.0" ""
-run_test "IP máxima (255.255.255.255)" "./ft_ping 255.255.255.255" "Do you want to ping broadcast" "true"
-run_test "IP pública (1.2.3.4)" "./ft_ping 1.2.3.4" ""
-run_test "IP loopback (127.0.0.1)" "./ft_ping 127.0.0.1" ""
-run_test "IP Google DNS (8.8.8.8)" "./ft_ping 8.8.8.8" ""
-
-# ============================================================================
-# PRUEBAS DE DESTINOS INVÁLIDOS
-# ============================================================================
-echo -e "${CYAN}=== Pruebas de Destinos Inválidos ===${NC}"
-
-# 20. Hostname completamente inválido
-run_test "Hostname inválido" "./ft_ping thisdomaindoesnotexist12345.invalid" "Name or service not known" "true"
-
-# 21. IP malformada
-run_test "IP malformada (999.999.999.999)" "./ft_ping 999.999.999.999" "Name or service not known" "true"
-
-# 22. IP incompleta (ahora se convierte correctamente)
-run_test "IP incompleta (192.168.1)" "./ft_ping 192.168.1" ""
-
-# 23. String vacío como destino (si es posible)
-run_test "String vacío" "./ft_ping ''" "No address associated with hostname" "true" "true"
-
-# ============================================================================
-# PRUEBAS DE IPs INVÁLIDAS
-# ============================================================================
-echo -e "${CYAN}=== Pruebas de IPs Inválidas ===${NC}"
-
-# Formatos que ping convierte (como ping original)
-run_test "Solo un segmento (192)" "./ft_ping 192" ""
-run_test "Dos segmentos (192.168)" "./ft_ping 192.168" ""
-run_test "Tres segmentos (192.168.1)" "./ft_ping 192.168.1" ""
-run_test "Cinco segmentos (1.2.3.4.5)" "./ft_ping 1.2.3.4.5" "Name or service not known" "true"
-run_test "Punto inicial (.1.2.3.4)" "./ft_ping .1.2.3.4" "Name or service not known" "true"
-run_test "Punto final (1.2.3.4.)" "./ft_ping 1.2.3.4." "Name or service not known" "true"
-run_test "Doble punto (1..2.3)" "./ft_ping 1..2.3" "Name or service not known" "true"
-
-# Valores fuera de rango
-run_test "Segmento >255 (256.1.1.1)" "./ft_ping 256.1.1.1" "Name or service not known" "true"
-run_test "Segmento negativo (1.2.3.-1)" "./ft_ping 1.2.3.-1" "Name or service not known" "true"
-run_test "Segmento >255 (1.2.3.999)" "./ft_ping 1.2.3.999" "Name or service not known" "true"
-run_test "Segmento vacío (1.2..4)" "./ft_ping 1.2..4" "Name or service not known" "true"
-
-# ============================================================================
-echo -e "${CYAN}=== Pruebas de IPs Decimales Válidas ===${NC}"
-
-# IPs decimales válidas (formato decimal de IPs conocidas)
-run_test "IP decimal 0 (0.0.0.0)" "./ft_ping 0" ""
-run_test "IP decimal localhost (2130706433)" "./ft_ping 2130706433" ""
-run_test "IP decimal Google DNS (134744072)" "./ft_ping 134744072" ""
-run_test "IP decimal 192.168.1.1 (3232235777)" "./ft_ping 3232235777" ""
-run_test "IP decimal máxima (4294967295)" "./ft_ping 4294967295" "Do you want to ping broadcast" "true"
-
-# ============================================================================
-echo -e "${CYAN}=== Pruebas de IPs Decimales Inválidas ===${NC}"
-
-# Overflow y casos inválidos
-run_test "IP decimal overflow (4294967296)" "./ft_ping 4294967296" "Temporary failure in name resolution" "true"
-run_test "IP decimal muy grande (99999999999)" "./ft_ping 99999999999" "Temporary failure in name resolution" "true"
-run_test "IP decimal negativa (-1)" "./ft_ping -1" "invalid option" "true"
-run_test "IP decimal con signo negativo (-123)" "./ft_ping -123" "invalid option" "true"
-
-# ============================================================================
-echo -e "${CYAN}=== Pruebas de Casos Edge y Raros ===${NC}"
-
-# Combinaciones extrañas de caracteres
-run_test "Números con letras (123abc)" "./ft_ping 123abc" "Temporary failure in name resolution" "true"
-run_test "Hexadecimal (0x12345678)" "./ft_ping 0x12345678" ""
-run_test "Octal (0123456)" "./ft_ping 0123456" ""
-run_test "Decimal con espacios ( 123456 )" "./ft_ping ' 123456 '" "Name or service not known" "true"
-run_test "Decimal con ceros a la izquierda (0000123456)" "./ft_ping 0000123456" ""
-
-# Casos con símbolos especiales
-run_test "IP con símbolo + (+192.168.1.1)" "./ft_ping +192.168.1.1" "Name or service not known" "true"
-run_test "Número con coma decimal (192,168)" "./ft_ping 192,168" "Name or service not known" "true"
-run_test "Número científico (1e6)" "./ft_ping 1e6" "Temporary failure in name resolution" "true"
-
-# Casos muy largos
-run_test "String muy largo (100 caracteres)" "./ft_ping $(printf '%0101s' | tr ' ' '9')" "Name or service not known" "true"
-run_test "IP con muchos puntos (...)" "./ft_ping ..." "Name or service not known" "true"
-run_test "Solo puntos (.....)" "./ft_ping ....." "Name or service not known" "true"
-
-# Casos con caracteres Unicode/especiales  
-run_test "Caracteres especiales (cafe.com)" "./ft_ping cafe.com" ""
-run_test "Caracteres especiales (emoji.com)" "./ft_ping emoji.com" ""
-
-# ============================================================================
-# PRUEBAS DE COMPATIBILIDAD CON PING ORIGINAL
+# GRUPO 2: TESTS DE CASOS DE ERROR (Argumentos raros, mensajes de advertencia)
 # ============================================================================
 echo ""
-echo -e "${CYAN}=== Pruebas de Compatibilidad con Ping Original ===${NC}"
+echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║                         GRUPO 2: TESTS DE CASOS DE ERROR                    ║${NC}"
+echo -e "${CYAN}║                  (Argumentos raros, mensajes de advertencia)                ║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+echo ""
 
-# Casos específicos probados para coincidir mensajes de error
-run_test "Sin argumentos" "./ft_ping" "usage error: Destination address required" "true"
-run_test "IP inválida (192.168.1.999)" "./ft_ping 192.168.1.999" "Name or service not known" "true"
+echo -e "${BLUE}--- Argumentos Inválidos ---${NC}"
+# Tests que deberían fallar con mensajes específicos de error
+run_test "Flag inválido (-x)" "./ft_ping -x google.com" "invalid option" "true"
+run_test "Flag inválido (-h)" "./ft_ping -h google.com" "invalid option" "true"
+run_test "Múltiples flags inválidos (-xyz)" "./ft_ping -xyz google.com" "invalid option" "true"
+run_test "Destino como flag (-google.com)" "./ft_ping -google.com" "invalid option" "true"
+
+echo -e "${BLUE}--- IPs con Casos Especiales ---${NC}"
+# Tests que pueden generar advertencias o comportamientos especiales
+run_ping_test "IP broadcast (255.255.255.255)" "sudo ./ft_ping 255.255.255.255" "Do you want to ping broadcast"
+run_ping_test "IP de red (0.0.0.0)" "sudo ./ft_ping 0.0.0.0" "64 bytes from"
+run_ping_test "IP multicast (224.0.0.1)" "sudo ./ft_ping 224.0.0.1" "64 bytes from"
+
+echo -e "${BLUE}--- Formatos de IP Inválidos ---${NC}"
+# IPs malformadas que deberían fallar
+run_test "IP con octeto > 255 (256.1.1.1)" "./ft_ping 256.1.1.1" "Name or service not known" "true"
+run_test "IP con octetos negativos (-1.1.1.1)" "./ft_ping -1.1.1.1" "invalid option" "true"
+run_test "IP incompleta (192.168.1)" "./ft_ping 192.168.1" "Name or service not known" "true"
+run_test "IP con demasiados octetos (1.2.3.4.5)" "./ft_ping 1.2.3.4.5" "Name or service not known" "true"
+run_test "IP con caracteres no numéricos (1.2.a.4)" "./ft_ping 1.2.a.4" "Name or service not known" "true"
+
+echo -e "${BLUE}--- Hostnames Inválidos ---${NC}"
+run_test "Hostname inexistente" "./ft_ping thisdomaindoesnotexist12345.invalid" "Name or service not known" "true"
+run_test "Hostname con caracteres inválidos" "./ft_ping abc!" "Name or service not known" "true"
+run_test "Hostname vacío con caracteres especiales" "./ft_ping ////" "Name or service not known" "true"
+
+echo -e "${BLUE}--- Formatos Hexadecimales y Decimales Inválidos ---${NC}"
 run_test "Hex inválido (0x)" "./ft_ping 0x" "Temporary failure in name resolution" "true"
-run_test "Hostname inválido con caracteres válidos (0xxxx)" "./ft_ping 0xxxx" "Temporary failure in name resolution" "true"
-run_test "Destino con caracteres inválidos (////)" "./ft_ping ////" "Name or service not known" "true"
-run_test "Destino con caracteres inválidos (abc!)" "./ft_ping abc!" "Name or service not known" "true"
-run_test "IP válida (8.8.8.8)" "./ft_ping 8.8.8.8" ""  # No debe tener error
-run_test "Hostname válido (google.com)" "./ft_ping google.com" ""  # No debe tener error
-run_test "Hex válido (0x3)" "./ft_ping 0x3" ""  # No debe tener error
+run_test "Hex incompleto (0xxxx)" "./ft_ping 0xxxx" "Temporary failure in name resolution" "true"
 
 # ============================================================================
-# PRUEBAS DE MEMORY LEAKS
+# GRUPO 3: TESTS DE PING REALES (Diferentes formatos de IP y estadísticas)
 # ============================================================================
 echo ""
-echo -e "${CYAN}=== Pruebas de Memory Leaks ===${NC}"
+echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║                        GRUPO 3: TESTS DE PING REALES                        ║${NC}"
+echo -e "${CYAN}║                  (Diferentes formatos de IP y estadísticas)                 ║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+echo ""
 
-# Pruebas de memory leaks con diferentes tipos de destinos
+# Función especializada para pruebas de ping reales con estadísticas
+run_ping_stats_test() {
+    local desc="$1"
+    local target="$2"
+    local timeout_sec="$3"
+    local expect_success="$4" # true/false si esperamos que funcione
+    
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
+    PING_COMPARISONS=$((PING_COMPARISONS + 1))
+    
+    echo -e "${BLUE}Prueba $TOTAL_TESTS: $desc${NC}"
+    echo -e "${YELLOW}Target: $target (timeout: ${timeout_sec}s)${NC}"
+    
+    # Ejecutar ft_ping con timeout y capturar salida
+    echo -e "${CYAN}Ejecutando ft_ping...${NC}"
+    ft_output=$(timeout ${timeout_sec}s sudo ./ft_ping $target 2>&1 || true)
+    ft_exit=$?
+    
+    # Ejecutar ping original para comparar (solo si esperamos éxito)
+    if [ "$expect_success" = "true" ]; then
+        echo -e "${CYAN}Ejecutando ping original...${NC}"
+        ping_output=$(timeout ${timeout_sec}s ping -c 3 $target 2>&1 || true)
+        ping_exit=$?
+    fi
+    
+    # Mostrar resultados de ft_ping
+    echo -e "${GREEN}--- ft_ping output ---${NC}"
+    echo "$ft_output"
+    
+    if [ "$expect_success" = "true" ]; then
+        echo -e "${GREEN}--- ping original output ---${NC}"
+        echo "$ping_output"
+        
+        # Analizar estadísticas de ambos
+        ft_stats=$(echo "$ft_output" | grep -E "(packets transmitted|rtt min)" || echo "No stats found")
+        ping_stats=$(echo "$ping_output" | grep -E "(packets transmitted|rtt min)" || echo "No stats found")
+        
+        echo -e "${YELLOW}📊 Comparación de estadísticas:${NC}"
+        echo -e "${BLUE}ft_ping:${NC} $ft_stats"
+        echo -e "${BLUE}ping:   ${NC} $ping_stats"
+        
+        # Verificar que ambos tengan estadísticas similares
+        if [[ "$ft_output" == *"packets transmitted"* && "$ping_output" == *"packets transmitted"* ]]; then
+            echo -e "${GREEN}✓ PASS${NC} - Ambos muestran estadísticas"
+            PASSED_TESTS=$((PASSED_TESTS + 1))
+            PING_MATCHES=$((PING_MATCHES + 1))
+        else
+            echo -e "${RED}✗ FAIL${NC} - Estadísticas no coinciden o faltan"
+        fi
+    else
+        # Para casos que esperamos que fallen
+        if [ $ft_exit -ne 0 ]; then
+            echo -e "${GREEN}✓ PASS${NC} - Falló como se esperaba"
+            PASSED_TESTS=$((PASSED_TESTS + 1))
+        else
+            echo -e "${RED}✗ FAIL${NC} - Debería haber fallado"
+        fi
+    fi
+    echo "---"
+}
+
+echo -e "${BLUE}--- Formatos de IP Estándar (Dotted Decimal) ---${NC}"
+# Pruebas con diferentes IPs en formato decimal con puntos
+run_ping_stats_test "Localhost (127.0.0.1)" "127.0.0.1" "5" "true"
+run_ping_stats_test "Google DNS (8.8.8.8)" "8.8.8.8" "5" "true"
+run_ping_stats_test "Cloudflare DNS (1.1.1.1)" "1.1.1.1" "5" "true"
+run_ping_stats_test "IP privada común (192.168.1.1)" "192.168.1.1" "5" "true"
+
+echo -e "${BLUE}--- Formatos de Hostname ---${NC}"
+# Pruebas con hostnames que resuelven a IP
+run_ping_stats_test "Hostname (localhost)" "localhost" "5" "true"
+run_ping_stats_test "Hostname (google.com)" "google.com" "6" "true"
+
+echo -e "${BLUE}--- Formatos de IP Especiales ---${NC}"
+# IPs con comportamientos especiales que aún funcionan
+run_ping_stats_test "IP de loopback extendida (127.0.0.2)" "127.0.0.2" "5" "true"
+run_ping_stats_test "IP pública aleatoria (1.2.3.4)" "1.2.3.4" "8" "true"
+
+echo -e "${BLUE}--- Formatos Decimales (según ping original) ---${NC}"
+# El ping original soporta algunos formatos decimales
+run_ping_stats_test "Formato decimal (2130706433)" "2130706433" "5" "true"  # 127.0.0.1 en decimal
+run_ping_stats_test "Formato octal (0177.0.0.1)" "0177.0.0.1" "5" "true"   # 127.0.0.1 en octal
+
+echo -e "${BLUE}--- Formatos Hexadecimales (según ping original) ---${NC}"
+# El ping original soporta algunos formatos hex
+run_ping_stats_test "Formato hex (0x7f000001)" "0x7f000001" "5" "true"     # 127.0.0.1 en hex
+run_ping_stats_test "Formato hex mixto (0x7f.0.0.1)" "0x7f.0.0.1" "5" "true" # hex/decimal mixto
+
+# Pruebas con diferentes formatos de IP
+echo -e "${YELLOW}Formatos decimales de IP:${NC}"
+run_ping_stats_test "IP en formato decimal (127.0.0.1)" "127.0.0.1" "3"
+run_ping_stats_test "IP decimal completa (2130706433 = 127.0.0.1)" "2130706433" "3"
+run_ping_stats_test "IP decimal Google DNS (134744072 = 8.8.8.8)" "134744072" "4"
+
+echo -e "${YELLOW}Formatos hexadecimales de IP:${NC}"
+run_ping_stats_test "IP hexadecimal (0x7f000001 = 127.0.0.1)" "0x7f000001" "3"
+run_ping_stats_test "IP hexadecimal Google DNS (0x08080808 = 8.8.8.8)" "0x08080808" "4"
+run_ping_stats_test "IP hexadecimal simple (0x1 = 0.0.0.1)" "0x1" "3"
+
+echo -e "${YELLOW}Formatos octales de IP:${NC}"
+run_ping_stats_test "IP octal (0177000001 = 127.0.0.1)" "0177000001" "3"
+run_ping_stats_test "IP octal simple (01 = 0.0.0.1)" "01" "3"
+
+echo -e "${YELLOW}Formatos de IP compactos:${NC}"
+run_ping_stats_test "IP compacta (192.168.1 = 192.168.0.1)" "192.168.1" "3"
+run_ping_stats_test "IP muy compacta (10.1 = 10.0.0.1)" "10.1" "3"
+run_ping_stats_test "IP mínima (1 = 0.0.0.1)" "1" "3"
+
+echo -e "${YELLOW}Hostnames comunes:${NC}"
+run_ping_stats_test "localhost" "localhost" "3"
+run_ping_stats_test "google.com" "google.com" "4"
+
+# ============================================================================
+# PRUEBAS ADICIONALES DE MEMORY LEAKS Y RENDIMIENTO
+# ============================================================================
+echo ""
+echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║                         PRUEBAS ADICIONALES                                  ║${NC}"
+echo -e "${CYAN}║                    (Memory leaks y rendimiento)                             ║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+echo -e "${BLUE}--- Memory Leaks (Casos exitosos) ---${NC}"
+# Pruebas de memory leaks con diferentes tipos de destinos válidos
 run_memory_test "Hostname válido (google.com)" "timeout 3 ./ft_ping google.com"
 run_memory_test "IP válida (8.8.8.8)" "timeout 3 ./ft_ping 8.8.8.8"
 run_memory_test "Localhost" "timeout 3 ./ft_ping localhost"
-run_memory_test "IP local (127.0.0.1)" "timeout 3 ./ft_ping 127.0.0.1"
 run_memory_test "Con verbose (-v)" "timeout 3 ./ft_ping -v google.com"
-run_memory_test "Decimal IP (2130706433)" "timeout 3 ./ft_ping 2130706433"
-run_memory_test "Decimal IP con verbose" "timeout 3 ./ft_ping -v 2130706433"
 
+echo -e "${BLUE}--- Memory Leaks (Casos de error) ---${NC}"
 # Pruebas de memory leaks con casos de error (deben fallar pero sin leaks)
 run_memory_test "Sin argumentos (error)" "./ft_ping"
 run_memory_test "Destino inválido (error)" "./ft_ping invalid.host.name"

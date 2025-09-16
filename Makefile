@@ -6,7 +6,7 @@ CC          = gcc
 CFLAGS      = -Wall -Wextra -Werror -g
 
 INCLUDES    = -Iinclude
-LIBS        =
+LIBS        = -lm
 
 # --- Directorios --- #
 SRC_DIR     = src/
