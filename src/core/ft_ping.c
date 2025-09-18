@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 17:59:44 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/16 17:37:35 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/17 07:12:34 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,6 +22,7 @@ void	print_help(void)
 		"  <destination>\t\tDNS name or IP address",
 		"  -v\t\t\tverbose output",
 		"  -?\t\t\tprint help and exit",
+		"  -c <count>\t\tstop after <count> replies"
 		"",
 		"Example:",
 		"  sudo ./ft_ping google.com",

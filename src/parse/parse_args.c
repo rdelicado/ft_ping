@@ -6,11 +6,23 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/12 09:53:27 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/16 17:54:03 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/17 08:41:36 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "parse.h"
+
+static void	init_args(t_args *args)
+{
+	args->verbose = 0;
+	args->help = 0;
+	args->count = 0;
+	args->dest = NULL;
+	args->dest_allocated = 0;
+	args->flood = 0;
+	args->packet_size = 56;
+	args->ttl = 64;
+}
 
 static int	handle_flag_error(const char *flag, int flag_char)
 {
@@ -26,7 +38,18 @@ static int	handle_flag_error(const char *flag, int flag_char)
 	return 0;
 }
 
-static int	parse_flags(int ac, char **av, int *verbose, int *help)
+static int parse_count_value(const char *str)
+{
+	char	*endptr;
+	long	count_value;
+
+	count_value = strtol(str,  &endptr, 10);
+	if (*endptr != '\0' || count_value <= 0 || count_value > INT_MAX)
+		return (-1);
+	return ((int)count_value);
+}
+
+static int	parse_flags(int ac, char **av, t_args *args)
 {
 	int i = 1;
 	int result;
@@ -34,9 +57,22 @@ static int	parse_flags(int ac, char **av, int *verbose, int *help)
 	while (i < ac)
 	{
 		if (strcmp(av[i], "-v") == 0)
-			*verbose = 1;
+			args->verbose = 1;
+		else if (strcmp(av[i], "-c") == 0) {
+			if (i + 1 >= ac) {
+				printf("ft_ping: option requires an argument -- 'c'\n");
+				print_help();
+				return(1);
+			}
+			args->count = parse_count_value(av[i + 1]);
+			if (args->count <= 0) {
+				printf("ft_ping: invalid argument: '%s'\n", av[i + 1]);
+				return 1;
+			}
+			i++;
+		}
 		else if (strcmp(av[i], "-?") == 0) {
-			*help = 1;
+			args->help = 1;
 			print_help();
 			exit(0);
 		}
@@ -56,7 +92,14 @@ static char	*get_destination(int ac, char **av)
 	i = 1;
 	while (i < ac)
 	{
-		if (av[i][0] != '-' && strcmp(av[i], "-?") != 0)
+		if (strcmp(av[i], "-c") == 0) {
+			i += 2; //saltar "-c" y su valor
+			continue;
+		}
+		else if (strcmp(av[i], "-v") == 0 || strcmp(av[i], "-?") == 0) {
+			i++;
+			continue;
+		} else if (av[i][0] != '-')
 		{
 			if (destination != NULL)
 			{
@@ -72,41 +115,43 @@ static char	*get_destination(int ac, char **av)
 
 static void	print_arguments(int ac, char **av, t_args *args)
 {
-	int		verbose = 0;
-	int		help = 0;
 	char	*destination = NULL;
 	int		result = 0;
 
+	// si no hay destino
 	if (ac < 2) {
 		printf("ft_ping: usage error: Destination address required\n");
 		exit(1);
 	}
 
+	// caso especial: solo ayuda
 	if (ac == 2 && strcmp(av[1], "-?") == 0)
 	{
 		print_help();
 		exit(0);
 	}
 
-	result = parse_flags(ac, av, &verbose, &help);
-	if (result == 1) {
+	// inicializar args con valores por defecto
+	init_args(args);
+	
+	// parsear flags directamente en args
+	result = parse_flags(ac, av, args);
+	if (result == 1)
 		exit(0);  // Exit successfully after showing help
-	}
-	if (result == -1) {
+	if (result == -1)
 		exit(2);  // Exit code 2 for invalid flags
-	}
 
+	// Parsear destino
 	destination = get_destination(ac, av);
-	if (destination == NULL && !help)
+	if (destination == NULL && !args->help)
 	{
 		printf("ft_ping: usage error: Destination address required\n");
 		exit(2);  // Exit code 2 para falta de destino
 	}
 
-	args->flag = verbose ? "-v" : NULL;
+	// guardar destino y procesar casos especiales
 	args->dest = destination;
-	args->dest_allocated = 0;  // Flag to know if dynamically allocated
-	args->verbose = verbose; // guardar estado de verbose
+	args->dest_allocated = 0;
 	
 	// Soporte para IP decimal y casos especiales
 	if (args->dest) {

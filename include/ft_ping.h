@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 18:06:23 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/16 16:16:48 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/17 08:37:07 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,6 +31,7 @@
 # include <stddef.h>
 # include <errno.h>
 # include <ctype.h>
+# include <limits.h>
 # include <signal.h>
 # include <arpa/inet.h>
 # include <sys/socket.h>
