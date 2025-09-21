@@ -21,7 +21,7 @@
 /* Core functions */
 void	print_help(void);
 int		main(int ac, char **av);
-void	start_ping_loop(int socket_fd, struct sockaddr_in *target_addr, char *target, int mode_verbose);
+void	start_ping_loop(int socket_fd, struct sockaddr_in *target_addr, t_args *args);
 
 /* Parsing functions */
 void	parse_arguments(int ac, char **av, t_args *args);

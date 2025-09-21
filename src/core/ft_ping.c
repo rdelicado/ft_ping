@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 17:59:44 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/17 07:12:34 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/21 19:55:15 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,7 +35,7 @@ void	print_help(void)
 
 
 
-void	start_ping_loop(int socket_fd, struct sockaddr_in *target_addr, char *target, int mode_verbose)
+void	start_ping_loop(int socket_fd, struct sockaddr_in *target_addr, t_args *args)
 {
 	struct timeval	send_moment;
 	t_ping_stats	stats;
@@ -53,18 +53,23 @@ void	start_ping_loop(int socket_fd, struct sockaddr_in *target_addr, char *targe
 	ping_info.next_number = 1;
 	ping_info.stats = &stats;
 
-	while (!g_stop)
-	{
-		gettimeofday(&send_moment, NULL);
-		send_ping_packet(&ping_info);
-		response_time = icmp_receive(ping_info.socket_fd, ping_info.packet_id, &send_moment, mode_verbose);
-		handle_ping_response(&ping_info, response_time);
-		if (g_stop)
-			break;
-		ping_info.next_number++;
-		sleep(1);
-	}
-	print_final_stats(&stats, target);
+	// Obtener el número de paquetes a enviar
+       int max_packets = 0;
+       if (args->packet_count > 0)
+	       max_packets = args->packet_count;
+
+       while (!g_stop && (max_packets == 0 || ping_info.next_number <= max_packets))
+       {
+	       gettimeofday(&send_moment, NULL);
+	       send_ping_packet(&ping_info);
+	       response_time = icmp_receive(ping_info.socket_fd, ping_info.packet_id, &send_moment, args->mode_verbose);
+	       handle_ping_response(&ping_info, response_time);
+	       if (g_stop)
+		       break;
+	       ping_info.next_number++;
+	       sleep(1);
+       }
+       print_final_stats(&stats, args->target);
 }
 
 static int	setup_handler(t_args *args, int ac, char **av)
@@ -94,7 +99,7 @@ int	main(int ac, char **av)
 	socket_fd = create_and_validate_socket(&args);
 
 	convert_ip_binary(socket_fd, &args, &target_addr);
-	start_ping_loop(socket_fd, &target_addr, args.target, args.mode_verbose);
+	start_ping_loop(socket_fd, &target_addr, &args);
 
 	close_socket(socket_fd);
 	cleanup_args(&args);
