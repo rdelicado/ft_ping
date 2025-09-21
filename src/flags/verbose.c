@@ -26,34 +26,34 @@ static const char *socktype_to_str(int t)
 	return "SOCK_?";
 }
 
-void	verbose_socket_info(int verbose, int sockfd)
+void	verbose_socket_info(int mode_verbose, int socket_fd)
 {
 	int	stype = 0;
 	socklen_t len;
 
-	if (!verbose)
+	if (!mode_verbose)
 		return ;
 
 	// Obtener socktype real
 	len = sizeof(stype);
-	if (getsockopt(sockfd, SOL_SOCKET, SO_TYPE, &stype, &len) < 0)
+	if (getsockopt(socket_fd, SOL_SOCKET, SO_TYPE, &stype, &len) < 0)
 		stype = SOCK_RAW; // Fallback porque sabemos que es RAW
 
 	// Imprimir en el formato esperado por ping estándar
 	// Simular IPv4 y IPv6 como hace ping real, aunque solo usemos IPv4
-	printf("ft_ping: sock4.fd: %d (socktype: %s), sock6.fd: %d (socktype: %s), hints.ai_family: AF_UNSPEC\n\n",
-		sockfd, socktype_to_str(stype), -1, "SOCK_RAW");
+	printf("ft_ping: sock4.fd: %d (socktype: %s), hints.ai_family: AF_INET\n\n",
+		socket_fd, socktype_to_str(stype));
 }
 
-void	verbose_resolution_info(int verbose, const char *dest, struct sockaddr_in *addr)
+void	verbose_resolution_info(int mode_verbose, const char *target, struct sockaddr_in *addr)
 {
 	int is_ip;
 
-	if (!verbose || !dest || !addr)
+	if (!mode_verbose || !target || !addr)
 		return ;
 	is_ip = 1;
-	for (int i = 0; dest[i]; i++) {
-		if ((dest[i] < '0' || dest[i] > '9') && dest[i] != '.' && dest[i] != 'x' && dest[i] != 'X') {
+	for (int i = 0; target[i]; i++) {
+		if ((target[i] < '0' || target[i] > '9') && target[i] != '.' && target[i] != 'x' && target[i] != 'X') {
 			is_ip = 0;
 			break;
 		}
@@ -61,15 +61,15 @@ void	verbose_resolution_info(int verbose, const char *dest, struct sockaddr_in *
 	if (is_ip)
 		printf("ai->ai_family: %s, ai->ai_canonname: NULL (direct IP)\n", family_to_str(AF_INET));
 	else
-		printf("ai->ai_family: %s, ai->ai_canonname: '%s'\n", family_to_str(AF_INET), dest);
+		printf("ai->ai_family: %s, ai->ai_canonname: '%s'\n", family_to_str(AF_INET), target);
 }
 
 
 
-void	verbose_resolution_error(int verbose, const char *dest, const char *error_msg)
+void	verbose_resolution_error(int mode_verbose, const char *target, const char *error_msg)
 {
-	if (!verbose || !dest || !error_msg)
+	if (!mode_verbose || !target || !error_msg)
 		return ;
-	printf("ft_ping: attempting to resolve hostname '%s' (ai_family: %s)\n", dest, family_to_str(AF_INET));
-	printf("ft_ping: %s: %s\n", dest, error_msg);
+	printf("ft_ping: attempting to resolve hostname '%s' (ai_family: %s)\n", target, family_to_str(AF_INET));
+	printf("ft_ping: %s: %s\n", target, error_msg);
 }

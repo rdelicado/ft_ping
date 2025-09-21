@@ -33,81 +33,41 @@ void	print_help(void)
 		puts(help[i]);
 }
 
-void	cleanup_args(t_args *args)
-{
-	if (args && args->dest && args->dest_allocated) {
-		free(args->dest);
-		args->dest = NULL;
-		args->dest_allocated = 0;
-	}
-}
 
-void	convert_ip_binary(int sockfd, t_args *args, struct sockaddr_in *dest_addr)
-{
-	// Imprimir información del socket si está en modo verbose
-	verbose_socket_info(args->verbose, sockfd);
-	
-	// Resolver el destino a IP binaria
-	if (resolve_destination(args->dest, dest_addr) == 0) {
-		const char *error_msg = "Name or service not known";
-		if (args->verbose)
-			verbose_resolution_error(args->verbose, args->dest, error_msg);
-		else
-			printf("ft_ping: %s: %s\n", args->dest, error_msg);
-		close_socket(sockfd);
-		cleanup_args(args);
-		exit(2);
-	}
-	verbose_resolution_info(args->verbose, args->dest, dest_addr);
-	printf("PING %s (%s) 56(84) bytes of data.\n", args->dest, inet_ntoa(dest_addr->sin_addr));
-}
 
-static void	handle_ping_response(double rtt_ms, int seq_counter, t_ping_stats *stats)
+void	start_ping_loop(int socket_fd, struct sockaddr_in *target_addr, char *target, int mode_verbose)
 {
-	if (rtt_ms >= 0.0) {
-		update_stats_packet_received(stats, rtt_ms);
-	} else {
-		printf("Request timeout for icmp_seq=%d\n", seq_counter);
-	}
-}
-
-static void	send_ping_packet(int sockfd, struct sockaddr_in *dest_addr,
-					uint16_t *packet_id, uint16_t *sequence, int seq_counter,
-					t_ping_stats *stats)
-{
-	if (icmp_request(sockfd, dest_addr, packet_id, sequence, seq_counter) == 0) {
-		update_stats_packet_sent(stats);
-	} else {
-		printf("Error enviando paquete icmp_seq=%d\n", seq_counter);
-	}
-}
-
-void	ping_loop(int sockfd, struct sockaddr_in *dest_addr, char *dest, int verbose)
-{
-	struct timeval	send_time;
-	uint16_t		packet_id;
-	uint16_t		sequence;
-	int				seq_counter;
+	struct timeval	send_moment;
 	t_ping_stats	stats;
-	double			rtt_ms;
+	t_ping_context	ping_info;
+	double			response_time;
 
-	init_stats(&stats);
-	seq_counter = 1;
+	// Inicializar estadísticas
+	setup_stats(&stats);
+	
+	// Configurar contexto del ping
+	ping_info.socket_fd = socket_fd;
+	ping_info.target_addr = target_addr;
+	ping_info.packet_id = 0;
+	ping_info.packet_number = 0;
+	ping_info.next_number = 1;
+	ping_info.stats = &stats;
+
 	while (!g_stop)
 	{
-		gettimeofday(&send_time, NULL);
-		send_ping_packet(sockfd, dest_addr, &packet_id, &sequence, seq_counter, &stats);
-		rtt_ms = icmp_receive(sockfd, packet_id, &send_time, verbose);
-		handle_ping_response(rtt_ms, seq_counter, &stats);
+		gettimeofday(&send_moment, NULL);
+		send_ping_packet(&ping_info);
+		response_time = icmp_receive(ping_info.socket_fd, ping_info.packet_id, &send_moment, mode_verbose);
+		handle_ping_response(&ping_info, response_time);
 		if (g_stop)
 			break;
-		seq_counter++;
+		ping_info.next_number++;
 		sleep(1);
 	}
-	print_final_stats(&stats, dest);
+	print_final_stats(&stats, target);
 }
 
-static int	setup_program(t_args *args, int ac, char **av)
+static int	setup_handler(t_args *args, int ac, char **av)
 {
 	setup_signal_handler();
 	memset(args, 0, sizeof(t_args));
@@ -120,35 +80,23 @@ static int	setup_program(t_args *args, int ac, char **av)
 	return 0;
 }
 
-static int	create_and_validate_socket(void)
-{
-	int sockfd = create_socket(0);
-	if (sockfd < 0) {
-		perror("ft_ping: socket");
-		return -1;
-	}
-	return sockfd;
-}
+
 
 int	main(int ac, char **av)
 {
-	struct sockaddr_in	dest_addr;
+	struct sockaddr_in	target_addr;
 	t_args				args;
-	int					sockfd;
+	int					socket_fd;
 
-	if (setup_program(&args, ac, av) != 0)
+	if (setup_handler(&args, ac, av) != 0)
 		return 1;
 
-	sockfd = create_and_validate_socket();
-	if (sockfd < 0) {
-		cleanup_args(&args);
-		return 1;
-	}
+	socket_fd = create_and_validate_socket(&args);
 
-	convert_ip_binary(sockfd, &args, &dest_addr);
-	ping_loop(sockfd, &dest_addr, args.dest, args.verbose);
+	convert_ip_binary(socket_fd, &args, &target_addr);
+	start_ping_loop(socket_fd, &target_addr, args.target, args.mode_verbose);
 
-	close_socket(sockfd);
+	close_socket(socket_fd);
 	cleanup_args(&args);
 	return 0;
 }

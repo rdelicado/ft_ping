@@ -48,30 +48,30 @@ static int	handle_hex_ip(char *dest, struct in_addr *out_addr)
 	return 0;
 }
 
-int	resolve_ip(char *dest, struct in_addr *out_addr)
+int	check_if_ip(char *target, struct in_addr *out_addr)
 {
-	if (!dest || dest[0] == '\0')
+	if (!target || target[0] == '\0')
 		return 0;
 
 	/* Manejar formato hexadecimal */
-	if (handle_hex_ip(dest, out_addr))
+	if (handle_hex_ip(target, out_addr))
 		return 1;
 
 	/* Check valid IP format */
 	int dots;
-	if (!is_valid_ip_format(dest, &dots))
+	if (!is_valid_ip_format(target, &dots))
 		return 0;
 
 	/* Use inet_pton for final validation */
 	struct in_addr addr;
-	if (inet_pton(AF_INET, dest, &addr) == 1) {
+	if (inet_pton(AF_INET, target, &addr) == 1) {
 		if (out_addr) *out_addr = addr;
 		return 1;
 	}
 	return 0;
 }
 
-int	resolve_hostname(char *hostname, struct in_addr *out_addr)
+int	find_hostname_ip(char *hostname, struct in_addr *out_addr)
 {
 	struct addrinfo hints, *res;
 	int i, dots;
@@ -122,30 +122,30 @@ int	resolve_hostname(char *hostname, struct in_addr *out_addr)
 	return 0;
 }
 
-int resolve_destination(const char *dest, struct sockaddr_in *addr)
+int find_target_address(const char *target, struct sockaddr_in *addr)
 {
-	char dest_copy[256];
+	char target_copy[256];
 	struct in_addr ip_addr;
 
-	if (!dest || !addr)
+	if (!target || !addr)
 		return 0;
 
 	// Hacer copia para evitar modificar el original
-	strncpy(dest_copy, dest, sizeof(dest_copy) - 1);
-	dest_copy[sizeof(dest_copy) - 1] = '\0';
+	strncpy(target_copy, target, sizeof(target_copy) - 1);
+	target_copy[sizeof(target_copy) - 1] = '\0';
 
 	// Inicializar sockaddr_in
 	memset(addr, 0, sizeof(struct sockaddr_in));
 	addr->sin_family = AF_INET;
 
-	// Resolver IP
-	if (resolve_ip(dest_copy, &ip_addr)) {
+	// Comprobar si es IP
+	if (check_if_ip(target_copy, &ip_addr)) {
 		addr->sin_addr = ip_addr;
 		return 1;
 	}
 
-	// Si no es IP, resovler hostname
-	if (resolve_hostname(dest_copy, &ip_addr)) {
+	// Si no es IP, buscar hostname
+	if (find_hostname_ip(target_copy, &ip_addr)) {
 		addr->sin_addr = ip_addr;
 		return 1;
 	}

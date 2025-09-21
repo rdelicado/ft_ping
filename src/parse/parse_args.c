@@ -10,21 +10,21 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "parse.h"
+#include "ft_ping.h"
 
-static void	init_args(t_args *args)
+static void	setup_default_values(t_args *args)
 {
-	args->verbose = 0;
-	args->help = 0;
-	args->count = 0;
-	args->dest = NULL;
-	args->dest_allocated = 0;
-	args->flood = 0;
-	args->packet_size = 56;
-	args->ttl = 64;
+	args->mode_verbose = 0;
+	args->show_help = 0;
+	args->packet_count = 0;
+	args->target = NULL;
+	args->target_was_created = 0;
+	args->flood_mode = 0;
+	args->packet_bytes = 56;
+	args->time_to_live = 64;
 }
 
-static int	handle_flag_error(const char *flag, int flag_char)
+static int	handle_wrong_flag(const char *flag, int flag_char)
 {
 	if (strcmp(flag, "-") == 0) {
 		printf("ft_ping: -: Name or service not known\n");
@@ -38,7 +38,7 @@ static int	handle_flag_error(const char *flag, int flag_char)
 	return 0;
 }
 
-static int parse_count_value(const char *str)
+static int get_count_from_text(const char *str)
 {
 	char	*endptr;
 	long	count_value;
@@ -49,7 +49,7 @@ static int parse_count_value(const char *str)
 	return ((int)count_value);
 }
 
-static int	parse_flags(int ac, char **av, t_args *args)
+static int	check_all_flags(int ac, char **av, t_args *args)
 {
 	int i = 1;
 	int result;
@@ -57,38 +57,38 @@ static int	parse_flags(int ac, char **av, t_args *args)
 	while (i < ac)
 	{
 		if (strcmp(av[i], "-v") == 0)
-			args->verbose = 1;
+			args->mode_verbose = 1;
 		else if (strcmp(av[i], "-c") == 0) {
 			if (i + 1 >= ac) {
 				printf("ft_ping: option requires an argument -- 'c'\n");
 				print_help();
 				return(1);
 			}
-			args->count = parse_count_value(av[i + 1]);
-			if (args->count <= 0) {
+			args->packet_count = get_count_from_text(av[i + 1]);
+			if (args->packet_count <= 0) {
 				printf("ft_ping: invalid argument: '%s'\n", av[i + 1]);
 				return 1;
 			}
 			i++;
 		}
 		else if (strcmp(av[i], "-?") == 0) {
-			args->help = 1;
+			args->show_help = 1;
 			print_help();
 			exit(0);
 		}
-		else if ((result = handle_flag_error(av[i], av[i][1])) != 0)
+		else if ((result = handle_wrong_flag(av[i], av[i][1])) != 0)
 			return result;
 		i++;
 	}
 	return 0;
 }
 
-static char	*get_destination(int ac, char **av)
+static char	*get_target_from_args(int ac, char **av)
 {
 	int i;
-	char *destination;
+	char *target;
 
-	destination = NULL;
+	target = NULL;
 	i = 1;
 	while (i < ac)
 	{
@@ -101,21 +101,21 @@ static char	*get_destination(int ac, char **av)
 			continue;
 		} else if (av[i][0] != '-')
 		{
-			if (destination != NULL)
+			if (target != NULL)
 			{
 				printf("ft_ping: too many destinations\n");
 				exit(2);  // Exit code 2 para demasiados argumentos
 			}
-			destination = av[i];
+			target = av[i];
 		}
 		i++;
 	}
-	return destination;
+	return target;
 }
 
-static void	print_arguments(int ac, char **av, t_args *args)
+static void	process_all_arguments(int ac, char **av, t_args *args)
 {
-	char	*destination = NULL;
+	char	*target = NULL;
 	int		result = 0;
 
 	// si no hay destino
@@ -132,42 +132,42 @@ static void	print_arguments(int ac, char **av, t_args *args)
 	}
 
 	// inicializar args con valores por defecto
-	init_args(args);
+	setup_default_values(args);
 	
 	// parsear flags directamente en args
-	result = parse_flags(ac, av, args);
+	result = check_all_flags(ac, av, args);
 	if (result == 1)
 		exit(0);  // Exit successfully after showing help
 	if (result == -1)
 		exit(2);  // Exit code 2 for invalid flags
 
 	// Parsear destino
-	destination = get_destination(ac, av);
-	if (destination == NULL && !args->help)
+	target = get_target_from_args(ac, av);
+	if (target == NULL && !args->show_help)
 	{
 		printf("ft_ping: usage error: Destination address required\n");
 		exit(2);  // Exit code 2 para falta de destino
 	}
 
 	// guardar destino y procesar casos especiales
-	args->dest = destination;
-	args->dest_allocated = 0;
+	args->target = target;
+	args->target_was_created = 0;
 	
 	// Soporte para IP decimal y casos especiales
-	if (args->dest) {
+	if (args->target) {
 		char ipbuf[INET_ADDRSTRLEN];
 		
 		// Manejar casos especiales como "192" -> "0.0.0.192"
-		if (handle_special_decimal(args->dest, ipbuf, sizeof(ipbuf))) {
-			args->dest = strdup(ipbuf);
-			args->dest_allocated = 1;  // Mark as dynamically allocated
+		if (handle_special_decimal(args->target, ipbuf, sizeof(ipbuf))) {
+			args->target = strdup(ipbuf);
+			args->target_was_created = 1;  // Mark as dynamically allocated
 		}
 	}
 }
 
 void	parse_arguments(int ac, char **av, t_args *args)
 {
-	print_arguments(ac, av, args);
+	process_all_arguments(ac, av, args);
 	if (args == NULL)
 		return ;
 	validate_destination(args);
