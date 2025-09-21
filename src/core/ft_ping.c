@@ -44,6 +44,9 @@ void	cleanup_args(t_args *args)
 
 void	convert_ip_binary(int sockfd, t_args *args, struct sockaddr_in *dest_addr)
 {
+	// Imprimir información del socket si está en modo verbose
+	verbose_socket_info(args->verbose, sockfd);
+	
 	// Resolver el destino a IP binaria
 	if (resolve_destination(args->dest, dest_addr) == 0) {
 		const char *error_msg = "Name or service not known";

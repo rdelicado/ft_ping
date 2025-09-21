@@ -136,7 +136,7 @@ int resolve_destination(const char *dest, struct sockaddr_in *addr)
 
 	// Inicializar sockaddr_in
 	memset(addr, 0, sizeof(struct sockaddr_in));
-	addr->sin_addr = ip_addr;
+	addr->sin_family = AF_INET;
 
 	// Resolver IP
 	if (resolve_ip(dest_copy, &ip_addr)) {
