@@ -30,13 +30,14 @@ bool	handle_special_decimal(const char *input, char *out, size_t outlen);
 
 /* Network functions */
 int		create_socket(int sockfd);
+int		set_socket_ttl(int sockfd, int ttl);
 void	close_socket(int sockfd);
 int		check_if_ip(char *target, struct in_addr *out_addr);
 int		find_hostname_ip(char *hostname, struct in_addr *out_addr);
 int		find_target_address(const char *target, struct sockaddr_in *addr);
 
 /* ICMP functions */
-int		icmp_request(int sockfd, struct sockaddr_in *dest_addr, uint16_t *packet_id, uint16_t *sequence, int seq_counter);
+int		icmp_request(int sockfd, struct sockaddr_in *dest_addr, uint16_t *packet_id, uint16_t *sequence, int seq_counter, int packet_size);
 double	icmp_receive(int sockfd, uint16_t expected_id, struct timeval *send_time, int mode_verbose);
 uint16_t icmp_checksum(const void *buf, int len);
 

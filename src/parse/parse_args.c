@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/12 09:53:27 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/17 08:41:36 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/23 11:41:53 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,6 +22,8 @@ static void	setup_default_values(t_args *args)
 	args->flood_mode = 0;
 	args->packet_bytes = 56;
 	args->time_to_live = 64;
+	args->interval = 1.0;  // 1 segundo por defecto
+	args->timeout = 3;     // 3 segundos por defecto
 }
 
 static int	handle_wrong_flag(const char *flag, int flag_char)
@@ -49,6 +51,50 @@ static int get_count_from_text(const char *str)
 	return ((int)count_value);
 }
 
+static int get_packet_size_from_text(const char *str)
+{
+	char	*endptr;
+	long	size_value;
+
+	size_value = strtol(str, &endptr, 10);
+	if (*endptr != '\0' || size_value < 0 || size_value > 65507)
+		return (-1);
+	return ((int)size_value);
+}
+
+static int get_ttl_from_text(const char *str)
+{
+	char	*endptr;
+	long	ttl_value;
+
+	ttl_value = strtol(str, &endptr, 10);
+	if (*endptr != '\0' || ttl_value < 1 || ttl_value > 255)
+		return (-1);
+	return ((int)ttl_value);
+}
+
+static double get_interval_from_text(const char *str)
+{
+	char	*endptr;
+	double	interval_value;
+
+	interval_value = strtod(str, &endptr);
+	if (*endptr != '\0' || interval_value < 0.001)
+		return (-1.0);
+	return (interval_value);
+}
+
+static int get_timeout_from_text(const char *str)
+{
+	char	*endptr;
+	long	timeout_value;
+
+	timeout_value = strtol(str, &endptr, 10);
+	if (*endptr != '\0' || timeout_value < 1 || timeout_value > 3600)
+		return (-1);
+	return ((int)timeout_value);
+}
+
 static int	check_all_flags(int ac, char **av, t_args *args)
 {
 	int i = 1;
@@ -58,6 +104,8 @@ static int	check_all_flags(int ac, char **av, t_args *args)
 	{
 		if (strcmp(av[i], "-v") == 0)
 			args->mode_verbose = 1;
+		else if (strcmp(av[i], "-f") == 0)
+			args->flood_mode = 1;
 		else if (strcmp(av[i], "-c") == 0) {
 			if (i + 1 >= ac) {
 				printf("ft_ping: option requires an argument -- 'c'\n");
@@ -67,6 +115,58 @@ static int	check_all_flags(int ac, char **av, t_args *args)
 			args->packet_count = get_count_from_text(av[i + 1]);
 			if (args->packet_count <= 0) {
 				printf("ft_ping: invalid argument: '%s'\n", av[i + 1]);
+				return 1;
+			}
+			i++;
+		}
+		else if (strcmp(av[i], "-s") == 0) {
+			if (i + 1 >= ac) {
+				printf("ft_ping: option requires an argument -- 's'\n");
+				print_help();
+				return(1);
+			}
+			args->packet_bytes = get_packet_size_from_text(av[i + 1]);
+			if (args->packet_bytes < 0) {
+				printf("ft_ping: invalid packet size: '%s'\n", av[i + 1]);
+				return 1;
+			}
+			i++;
+		}
+		else if (strcmp(av[i], "--ttl") == 0) {
+			if (i + 1 >= ac) {
+				printf("ft_ping: option requires an argument -- 'ttl'\n");
+				print_help();
+				return(1);
+			}
+			args->time_to_live = get_ttl_from_text(av[i + 1]);
+			if (args->time_to_live < 0) {
+				printf("ft_ping: invalid TTL: '%s'\n", av[i + 1]);
+				return 1;
+			}
+			i++;
+		}
+		else if (strcmp(av[i], "-i") == 0) {
+			if (i + 1 >= ac) {
+				printf("ft_ping: option requires an argument -- 'i'\n");
+				print_help();
+				return(1);
+			}
+			args->interval = get_interval_from_text(av[i + 1]);
+			if (args->interval < 0) {
+				printf("ft_ping: invalid interval: '%s'\n", av[i + 1]);
+				return 1;
+			}
+			i++;
+		}
+		else if (strcmp(av[i], "-W") == 0) {
+			if (i + 1 >= ac) {
+				printf("ft_ping: option requires an argument -- 'W'\n");
+				print_help();
+				return(1);
+			}
+			args->timeout = get_timeout_from_text(av[i + 1]);
+			if (args->timeout < 0) {
+				printf("ft_ping: invalid timeout: '%s'\n", av[i + 1]);
 				return 1;
 			}
 			i++;
@@ -92,11 +192,14 @@ static char	*get_target_from_args(int ac, char **av)
 	i = 1;
 	while (i < ac)
 	{
-		if (strcmp(av[i], "-c") == 0) {
-			i += 2; //saltar "-c" y su valor
+		if (strcmp(av[i], "-c") == 0 || strcmp(av[i], "-s") == 0 || 
+			strcmp(av[i], "--ttl") == 0 || strcmp(av[i], "-i") == 0 || 
+			strcmp(av[i], "-W") == 0) {
+			i += 2; //saltar flag y su valor
 			continue;
 		}
-		else if (strcmp(av[i], "-v") == 0 || strcmp(av[i], "-?") == 0) {
+		else if (strcmp(av[i], "-v") == 0 || strcmp(av[i], "-?") == 0 || 
+				 strcmp(av[i], "-f") == 0) {
 			i++;
 			continue;
 		} else if (av[i][0] != '-')

@@ -35,7 +35,9 @@ typedef struct s_args
 	// configuracion adicional para mas flags
 	int					flood_mode; 		// para -f
 	int					packet_bytes; 		// para -s
-	int					time_to_live;		//para --ttl
+	int					time_to_live;		// para --ttl
+	double				interval;			// para -i (intervalo entre paquetes)
+	int					timeout;			// para -W (timeout de respuesta)
 }	t_args;
 
 /* Ping statistics */
@@ -60,6 +62,7 @@ typedef struct s_ping_context
 	uint16_t			packet_number;
 	int					next_number;
 	t_ping_stats		*stats;
+	t_args				*args;  // Referencia a los argumentos para acceder a configuraciones
 }	t_ping_context;
 
 /* ===== VARIABLES GLOBALES ===== */

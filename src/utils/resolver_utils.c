@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/21 00:00:00 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/21 00:00:00 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/23 11:41:53 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,5 +29,6 @@ void	convert_ip_binary(int socket_fd, t_args *args, struct sockaddr_in *target_a
 		exit(2);
 	}
 	verbose_resolution_info(args->mode_verbose, args->target, target_addr);
-	printf("PING %s (%s) 56(84) bytes of data.\n", args->target, inet_ntoa(target_addr->sin_addr));
+	printf("PING %s (%s) %d(%d) bytes of data.\n", args->target, inet_ntoa(target_addr->sin_addr), 
+		   args->packet_bytes, args->packet_bytes + (int)sizeof(struct icmphdr));
 }

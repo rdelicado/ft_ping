@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 17:59:44 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/21 19:55:15 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/09/23 11:41:53 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,11 +22,18 @@ void	print_help(void)
 		"  <destination>\t\tDNS name or IP address",
 		"  -v\t\t\tverbose output",
 		"  -?\t\t\tprint help and exit",
-		"  -c <count>\t\tstop after <count> replies"
+		"  -c <count>\t\tstop after <count> replies",
+		"  -f\t\t\tflood ping (send packets as fast as possible)",
+		"  -s <size>\t\tspecify packet size in bytes (default 56)",
+		"  --ttl <ttl>\t\tset Time To Live (1-255, default 64)",
+		"  -i <interval>\t\tinterval between packets in seconds (default 1.0)",
+		"  -W <timeout>\t\ttimeout for replies in seconds (default 3)",
 		"",
-		"Example:",
+		"Examples:",
 		"  sudo ./ft_ping google.com",
-		"  sudo ./ft_ping -v google.com",
+		"  sudo ./ft_ping -v -c 3 google.com",
+		"  sudo ./ft_ping -s 1000 -i 0.5 google.com",
+		"  sudo ./ft_ping -f --ttl 128 google.com",
 		NULL
 	};
 	for (int i = 0; help[i]; i++)
@@ -52,6 +59,7 @@ void	start_ping_loop(int socket_fd, struct sockaddr_in *target_addr, t_args *arg
 	ping_info.packet_number = 0;
 	ping_info.next_number = 1;
 	ping_info.stats = &stats;
+	ping_info.args = args;
 
 	// Obtener el número de paquetes a enviar
        int max_packets = 0;
@@ -67,7 +75,18 @@ void	start_ping_loop(int socket_fd, struct sockaddr_in *target_addr, t_args *arg
 	       if (g_stop)
 		       break;
 	       ping_info.next_number++;
-	       sleep(1);
+	       
+	       // Implementar delay según las opciones
+	       if (!args->flood_mode) {
+		       // Usar intervalo personalizado o 1 segundo por defecto
+		       if (args->interval >= 1.0) {
+			       sleep((unsigned int)args->interval);
+		       } else {
+			       // Para intervalos menores a 1 segundo, usar usleep
+			       usleep((useconds_t)(args->interval * 1000000));
+		       }
+	       }
+	       // En modo flood (-f), no hay delay entre paquetes
        }
        print_final_stats(&stats, args->target);
 }
