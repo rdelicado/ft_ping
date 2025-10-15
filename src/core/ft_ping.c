@@ -62,33 +62,33 @@ void	start_ping_loop(int socket_fd, struct sockaddr_in *target_addr, t_args *arg
 	ping_info.args = args;
 
 	// Obtener el número de paquetes a enviar
-       int max_packets = 0;
-       if (args->packet_count > 0)
-	       max_packets = args->packet_count;
+	int max_packets = 0;
+	if (args->packet_count > 0)
+		max_packets = args->packet_count;
 
-       while (!g_stop && (max_packets == 0 || ping_info.next_number <= max_packets))
-       {
-	       gettimeofday(&send_moment, NULL);
-	       send_ping_packet(&ping_info);
-	       response_time = icmp_receive(ping_info.socket_fd, ping_info.packet_id, &send_moment, args->mode_verbose);
-	       handle_ping_response(&ping_info, response_time);
-	       if (g_stop)
-		       break;
-	       ping_info.next_number++;
-	       
-	       // Implementar delay según las opciones
-	       if (!args->flood_mode) {
-		       // Usar intervalo personalizado o 1 segundo por defecto
-		       if (args->interval >= 1.0) {
-			       sleep((unsigned int)args->interval);
-		       } else {
-			       // Para intervalos menores a 1 segundo, usar usleep
-			       usleep((useconds_t)(args->interval * 1000000));
-		       }
-	       }
-	       // En modo flood (-f), no hay delay entre paquetes
-       }
-       print_final_stats(&stats, args->target);
+	while (!g_stop && (max_packets == 0 || ping_info.next_number <= max_packets))
+	{
+		gettimeofday(&send_moment, NULL);
+		send_ping_packet(&ping_info);
+		response_time = icmp_receive(ping_info.socket_fd, ping_info.packet_id, &send_moment, args->mode_verbose);
+		handle_ping_response(&ping_info, response_time);
+		if (g_stop)
+			break;
+		ping_info.next_number++;
+		
+		// Implementar delay según las opciones
+		if (!args->flood_mode) {
+			// Usar intervalo personalizado o 1 segundo por defecto
+			if (args->interval >= 1.0) {
+				sleep((unsigned int)args->interval);
+			} else {
+				// Para intervalos menores a 1 segundo, usar usleep
+				usleep((useconds_t)(args->interval * 1000000));
+			}
+		}
+		// En modo flood (-f), no hay delay entre paquetes
+	}
+	print_final_stats(&stats, args->target);
 }
 
 static int	setup_handler(t_args *args, int ac, char **av)
