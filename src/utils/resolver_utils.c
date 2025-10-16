@@ -12,6 +12,8 @@
 
 #include "ft_ping.h"
 
+#define IP_Header 20
+
 void	convert_ip_binary(int socket_fd, t_args *args, struct sockaddr_in *target_addr)
 {
 	// Imprimir información del socket si está en modo verbose
@@ -29,6 +31,11 @@ void	convert_ip_binary(int socket_fd, t_args *args, struct sockaddr_in *target_a
 		exit(2);
 	}
 	verbose_resolution_info(args->mode_verbose, args->target, target_addr);
-	printf("PING %s (%s) %d(%d) bytes of data.\n", args->target, inet_ntoa(target_addr->sin_addr), 
-		   args->packet_bytes, args->packet_bytes + (int)sizeof(struct icmphdr));
+	int ICMP_Data = args->packet_bytes;
+	int ICMP_Header = sizeof(struct icmphdr);
+	printf("PING %s (%s) %d(%d) bytes of data.\n", 
+			args->target,
+			inet_ntoa(target_addr->sin_addr), 
+			args->packet_bytes,
+			IP_Header + ICMP_Header + ICMP_Data);
 }
