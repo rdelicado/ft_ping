@@ -1208,7 +1208,7 @@ valgrind --leak-check=full sudo ./ft_ping google.com
 
 ## 👨‍💻 Autor
 
-**Roberto Delicado**
+**Rubén Delicado**
 - GitHub: [@rdelicado](https://github.com/rdelicado)
 - Proyecto: [ft_ping](https://github.com/rdelicado/ft_ping)
 
