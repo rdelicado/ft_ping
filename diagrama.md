@@ -34,8 +34,3 @@ flowchart TD
     style N fill:#7f2d2d,stroke:#e95d5d,stroke-width:3px,color:#fff
 ```
 
-## Visualización
-
-Para ver este diagrama correctamente:
-- **VS Code**: Instala la extensión "Markdown Preview Mermaid Support" y abre la vista previa (Ctrl+Shift+V)
-- **GitHub**: Se renderiza automáticamente
