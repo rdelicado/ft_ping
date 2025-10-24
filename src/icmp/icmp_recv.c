@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/15 18:38:36 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/10/20 12:27:48 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/10/24 17:11:00 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,7 +56,7 @@ double	icmp_receive(int sockfd, uint16_t id, struct timeval *send_time, int verb
 		// Paso 5: Encontrar la parte ICMP dentro del paquete
 		icmp = (struct icmphdr *)(buffer + (ip->ihl * 4));
 
-		// Step 6: Is this the response we expect?
+		// Step 6: Check ICMP message type
 		if (icmp->type == ICMP_ECHOREPLY && icmp->un.echo.id == id) {
 			// Step 7: Calculate how long it took
 			double rtt = (recv_time.tv_sec - send_time->tv_sec) * 1000.0 +
@@ -80,6 +80,23 @@ double	icmp_receive(int sockfd, uint16_t id, struct timeval *send_time, int verb
 			
 			return rtt; // ¡Devolver el RTT calculado!
 		}
+		// Handle ICMP error messages
+		else if (icmp->type == ICMP_DEST_UNREACH || 
+				 icmp->type == ICMP_TIME_EXCEEDED ||
+				 icmp->type == ICMP_REDIRECT ||
+				 icmp->type == ICMP_PARAMETERPROB ||
+				 icmp->type == ICMP_SOURCE_QUENCH) {
+			// Extract original packet info from ICMP error payload
+			struct iphdr *orig_ip = (struct iphdr *)(icmp + 1);
+			struct icmphdr *orig_icmp = (struct icmphdr *)((char *)orig_ip + (orig_ip->ihl * 4));
+			
+			// Verify it's our packet
+			if (orig_icmp->un.echo.id == id) {
+				handle_icmp_error(icmp, &addr, orig_icmp->un.echo.sequence);
+				return -2.0; // Return special value for ICMP errors
+			}
+		}
+		
 		// Si no es para nosotros, intentar de nuevo
 		attempts++;
 	}

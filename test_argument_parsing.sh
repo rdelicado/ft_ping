@@ -1,24 +1,359 @@
 #!/bin/bash
 
-# Script de pruebas completas para ft_ping
-# Prueba todos los casos posibles de argumentos, flags y validación de destinos
+# Argument Parsing Test Suite for ft_ping
+# Author: rdelicad
+# Date: 2025-10-24
+#
+# This script verifies that argument parsing works correctly
 
-# Colores
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-echo -e "${GREEN}=== Pruebas Completas de ft_ping ===${NC}"
+PASSED=0
+FAILED=0
+TOTAL=0
+
+# Verificar que ft_ping existe
+if [ ! -f "./ft_ping" ]; then
+    echo -e "${RED}Error: ft_ping no encontrado. Ejecuta 'make' primero.${NC}"
+    exit 1
+fi
+
+echo -e "${CYAN}╔═══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║          ARGUMENT PARSING TEST SUITE - ft_ping               ║${NC}"
+echo -e "${CYAN}╚═══════════════════════════════════════════════════════════════╝${NC}\n"
+
+# Función de test simple
+test_parse() {
+    local desc="$1"
+    local cmd="$2"
+    local expected_pattern="$3"
+    local should_succeed="$4"  # "true" o "false"
+    
+    TOTAL=$((TOTAL + 1))
+    
+    echo -e "${BLUE}[$TOTAL]${NC} $desc"
+    
+    # Añadir sudo si el comando contiene ./ft_ping y no lo tiene ya
+    if [[ "$cmd" == *"./ft_ping"* ]] && [[ "$cmd" != *"sudo"* ]]; then
+        cmd=$(echo "$cmd" | sed 's|\./ft_ping|sudo ./ft_ping|')
+    fi
+    
+    echo -e "  ${YELLOW}→${NC} $cmd"
+    
+    output=$(eval "$cmd" 2>&1)
+    exit_code=$?
+    
+    if [ "$should_succeed" = "true" ]; then
+        # Debe contener el patrón esperado (ignoramos exit code por timeout)
+        if echo "$output" | grep -qi "$expected_pattern"; then
+            echo -e "  ${GREEN}✓ PASS${NC}"
+            PASSED=$((PASSED + 1))
+        else
+            echo -e "  ${RED}✗ FAIL${NC}"
+            echo -e "  ${RED}Esperado patrón:${NC} $expected_pattern"
+            echo -e "  ${RED}Salida:${NC} ${output:0:150}"
+            FAILED=$((FAILED + 1))
+        fi
+    else
+        # Debe contener el patrón de error (el programa puede imprimir error con exit 0 o !=0)
+        if echo "$output" | grep -qi "$expected_pattern"; then
+            echo -e "  ${GREEN}✓ PASS${NC} (error detectado)"
+            PASSED=$((PASSED + 1))
+        else
+            echo -e "  ${RED}✗ FAIL${NC} (error no detectado correctamente)"
+            echo -e "  ${RED}Esperado patrón:${NC} $expected_pattern"
+            echo -e "  ${RED}Salida:${NC} ${output:0:150}"
+            FAILED=$((FAILED + 1))
+        fi
+    fi
+    echo ""
+}
+
+# ═══════════════════════════════════════════════════════════════
+# CATEGORÍA 1: Argumentos Básicos
+# ═══════════════════════════════════════════════════════════════
+echo -e "${CYAN}═══ CATEGORÍA 1: Argumentos Básicos ═══${NC}\n"
+
+test_parse "Sin argumentos" \
+    "./ft_ping" \
+    "Destination address required" \
+    "false"
+
+test_parse "Ayuda (-?)" \
+    "./ft_ping -?" \
+    "Usage" \
+    "true"
+
+test_parse "Solo flag -v sin destino" \
+    "./ft_ping -v" \
+    "Destination address required" \
+    "false"
+
+test_parse "Destino simple (IP)" \
+    "./ft_ping -c 1 8.8.8.8" \
+    "PING 8.8.8.8" \
+    "true"
+
+test_parse "Destino simple (hostname)" \
+    "./ft_ping -c 1 localhost" \
+    "PING localhost" \
+    "true"
+
+# ═══════════════════════════════════════════════════════════════
+# CATEGORÍA 2: Flags Individuales
+# ═══════════════════════════════════════════════════════════════
+echo -e "${CYAN}═══ CATEGORÍA 2: Flags Individuales ═══${NC}\n"
+
+test_parse "Flag -v (verbose)" \
+    "./ft_ping -v -c 1 localhost" \
+    "sock4.fd" \
+    "true"
+
+test_parse "Flag -c (count)" \
+    "./ft_ping -c 2 localhost" \
+    "2 packets transmitted" \
+    "true"
+
+test_parse "Flag -s (packet size)" \
+    "./ft_ping -s 100 -c 1 localhost" \
+    "100(128) bytes" \
+    "true"
+
+test_parse "Flag -i (interval)" \
+    "./ft_ping -i 0.5 -c 2 localhost" \
+    "2 packets transmitted" \
+    "true"
+
+test_parse "Flag -W (timeout)" \
+    "./ft_ping -W 1 -c 1 10.255.255.254" \
+    "1 packets transmitted" \
+    "true"
+
+test_parse "Flag --ttl" \
+    "./ft_ping --ttl 64 -c 1 localhost" \
+    "ttl=64" \
+    "true"
+
+test_parse "Flag -f (flood)" \
+    "timeout 0.5 sudo ./ft_ping -f -c 10 localhost 2>&1 || true" \
+    "packets transmitted" \
+    "true"
+
+# ═══════════════════════════════════════════════════════════════
+# CATEGORÍA 3: Valores Inválidos para Flags
+# ═══════════════════════════════════════════════════════════════
+echo -e "${CYAN}═══ CATEGORÍA 3: Valores Inválidos para Flags ═══${NC}\n"
+
+test_parse "Count negativo (-c -1)" \
+    "./ft_ping -c -1 localhost" \
+    "invalid" \
+    "false"
+
+test_parse "Count cero (-c 0)" \
+    "./ft_ping -c 0 localhost" \
+    "invalid" \
+    "false"
+
+test_parse "Packet size negativo (-s -10)" \
+    "./ft_ping -s -10 localhost" \
+    "invalid" \
+    "false"
+
+test_parse "Packet size muy grande (-s 100000)" \
+    "./ft_ping -s 100000 localhost" \
+    "invalid\|too large" \
+    "false"
+
+test_parse "Interval negativo (-i -1)" \
+    "./ft_ping -i -1 localhost" \
+    "invalid" \
+    "false"
+
+test_parse "TTL fuera de rango (--ttl 300)" \
+    "./ft_ping --ttl 300 localhost" \
+    "invalid\|out of range" \
+    "false"
+
+test_parse "TTL = 0 (--ttl 0)" \
+    "./ft_ping --ttl 0 localhost" \
+    "invalid\|out of range" \
+    "false"
+
+# ═══════════════════════════════════════════════════════════════
+# CATEGORÍA 4: Flags Desconocidas
+# ═══════════════════════════════════════════════════════════════
+echo -e "${CYAN}═══ CATEGORÍA 4: Flags Desconocidas ═══${NC}\n"
+
+test_parse "Flag inválida (-x)" \
+    "./ft_ping -x localhost" \
+    "invalid option" \
+    "false"
+
+test_parse "Flag inválida (-h)" \
+    "./ft_ping -h localhost" \
+    "invalid option" \
+    "false"
+
+test_parse "Flag inválida (--help)" \
+    "./ft_ping --help localhost" \
+    "invalid option" \
+    "false"
+
+test_parse "Flag inválida (-abc)" \
+    "./ft_ping -abc localhost" \
+    "invalid option" \
+    "false"
+
+# ═══════════════════════════════════════════════════════════════
+# CATEGORÍA 5: Combinación de Flags
+# ═══════════════════════════════════════════════════════════════
+echo -e "${CYAN}═══ CATEGORÍA 5: Combinación de Flags ═══${NC}\n"
+
+test_parse "Múltiples flags (-v -c 2)" \
+    "./ft_ping -v -c 2 localhost" \
+    "2 packets transmitted" \
+    "true"
+
+test_parse "Múltiples flags (-c 2 -s 100)" \
+    "./ft_ping -c 2 -s 100 localhost" \
+    "100(128) bytes" \
+    "true"
+
+test_parse "Todas las flags (-v -c 2 -s 100 -i 0.5 --ttl 64)" \
+    "./ft_ping -v -c 2 -s 100 -i 0.5 --ttl 64 localhost" \
+    "2 packets transmitted" \
+    "true"
+
+test_parse "Flags en diferente orden (destino primero)" \
+    "./ft_ping localhost -c 2 -v" \
+    "2 packets transmitted" \
+    "true"
+
+test_parse "Flags mezcladas (destino en medio)" \
+    "./ft_ping -c 2 localhost -v" \
+    "2 packets transmitted" \
+    "true"
+
+# ═══════════════════════════════════════════════════════════════
+# CATEGORÍA 6: Formatos de Destino
+# ═══════════════════════════════════════════════════════════════
+echo -e "${CYAN}═══ CATEGORÍA 6: Formatos de Destino ═══${NC}\n"
+
+test_parse "IP válida (127.0.0.1)" \
+    "./ft_ping -c 1 127.0.0.1" \
+    "PING 127.0.0.1" \
+    "true"
+
+test_parse "Hostname válido (localhost)" \
+    "./ft_ping -c 1 localhost" \
+    "PING localhost" \
+    "true"
+
+test_parse "IP decimal (2130706433 = 127.0.0.1)" \
+    "./ft_ping -c 1 2130706433" \
+    "PING" \
+    "true"
+
+test_parse "IP hexadecimal (0x7f000001 = 127.0.0.1)" \
+    "./ft_ping -c 1 0x7f000001" \
+    "PING" \
+    "true"
+
+test_parse "IP octal (0177.0.0.1 = 127.0.0.1)" \
+    "./ft_ping -c 1 0177.0.0.1" \
+    "PING" \
+    "true"
+
+# ═══════════════════════════════════════════════════════════════
+# CATEGORÍA 7: Destinos Inválidos
+# ═══════════════════════════════════════════════════════════════
+echo -e "${CYAN}═══ CATEGORÍA 7: Destinos Inválidos ═══${NC}\n"
+
+test_parse "IP con octeto > 255 (256.1.1.1)" \
+    "./ft_ping -c 1 256.1.1.1" \
+    "Name or service not known" \
+    "false"
+
+test_parse "IP incompleta (192.168.1)" \
+    "./ft_ping -c 1 192.168.1" \
+    "PING\|Name or service not known" \
+    "true"
+
+test_parse "IP con demasiados octetos (1.2.3.4.5)" \
+    "./ft_ping -c 1 1.2.3.4.5" \
+    "Name or service not known" \
+    "false"
+
+test_parse "Hostname inexistente" \
+    "./ft_ping -c 1 this-domain-does-not-exist-12345.invalid" \
+    "Name or service not known" \
+    "false"
+
+test_parse "String vacío como destino" \
+    "./ft_ping -c 1 ''" \
+    "Destination address required\|Name or service not known\|No address associated with hostname" \
+    "false"
+
+# ═══════════════════════════════════════════════════════════════
+# CATEGORÍA 8: Casos Especiales
+# ═══════════════════════════════════════════════════════════════
+echo -e "${CYAN}═══ CATEGORÍA 8: Casos Especiales ═══${NC}\n"
+
+test_parse "Flag -c sin valor" \
+    "./ft_ping -c localhost" \
+    "option requires an argument\|invalid" \
+    "false"
+
+test_parse "Flag -s sin valor" \
+    "./ft_ping -s localhost" \
+    "option requires an argument\|invalid" \
+    "false"
+
+test_parse "Flag --ttl sin valor" \
+    "./ft_ping --ttl localhost" \
+    "option requires an argument\|invalid" \
+    "false"
+
+test_parse "Doble guión sin opción (--)" \
+    "./ft_ping -c 1 -- localhost" \
+    "invalid option\|PING localhost" \
+    "true"
+
+test_parse "Múltiples destinos (solo debe usar el primero)" \
+    "./ft_ping -c 1 localhost 8.8.8.8" \
+    "PING localhost\|too many arguments\|too many destinations" \
+    "true"
+
+# ═══════════════════════════════════════════════════════════════
+# RESUMEN
+# ═══════════════════════════════════════════════════════════════
+echo -e "${CYAN}╔═══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║                         RESUMEN FINAL                        ║${NC}"
+echo -e "${CYAN}╚═══════════════════════════════════════════════════════════════╝${NC}\n"
+
+echo -e "Tests totales:  ${BLUE}$TOTAL${NC}"
+echo -e "Tests pasados:  ${GREEN}$PASSED${NC}"
+echo -e "Tests fallados: ${RED}$FAILED${NC}"
 echo ""
 
-# Contadores
-TOTAL_TESTS=0
-PASSED_TESTS=0
-PING_COMPARISONS=0
-PING_MATCHES=0
+PERCENTAGE=$((PASSED * 100 / TOTAL))
+if [ $FAILED -eq 0 ]; then
+    echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}  ✓ ¡100% DE TESTS PASADOS! EL PARSEO FUNCIONA CORRECTAMENTE${NC}"
+    echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}\n"
+    exit 0
+elif [ $PERCENTAGE -ge 80 ]; then
+    echo -e "${YELLOW}⚠️  $PERCENTAGE% de tests pasados - Revisar los $FAILED tests fallidos${NC}\n"
+    exit 1
+else
+    echo -e "${RED}❌ Solo $PERCENTAGE% de tests pasados - Necesita correcciones${NC}\n"
+    exit 1
+fi
 
 # Función auxiliar para ping tests que aceptan timeout como válido
 run_ping_test() {

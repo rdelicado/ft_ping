@@ -6,7 +6,7 @@
 /*   By: rdelicad <rdelicad@gmail.com>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/11 17:59:44 by rdelicad          #+#    #+#             */
-/*   Updated: 2025/09/23 11:41:53 by rdelicad         ###   ########.fr       */
+/*   Updated: 2025/10/24 17:46:11 by rdelicad         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -71,7 +71,21 @@ void	start_ping_loop(int socket_fd, struct sockaddr_in *target_addr, t_args *arg
 		gettimeofday(&send_moment, NULL);
 		send_ping_packet(&ping_info);
 		response_time = icmp_receive(ping_info.socket_fd, ping_info.packet_id, &send_moment, args->mode_verbose);
-		handle_ping_response(&ping_info, response_time);
+		
+		// Handle response based on return value
+		if (response_time > 0.0)
+		{
+			// Successful reply - update statistics
+			count_got_packet(&stats, response_time);
+		}
+		else if (response_time == ICMP_REPLY_TIMEOUT)
+		{
+			// No response received within timeout
+			printf("Request timeout for icmp_seq=%d\n", ping_info.next_number);
+		}
+		// Note: ICMP error messages (ICMP_REPLY_ERROR) are already handled
+		// and printed by handle_icmp_error() inside icmp_receive()
+		
 		if (g_stop)
 			break;
 		ping_info.next_number++;

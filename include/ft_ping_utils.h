@@ -24,7 +24,6 @@ void	cleanup_args(t_args *args);
 void	convert_ip_binary(int socket_fd, t_args *args, struct sockaddr_in *target_addr);
 
 /* Ping utilities */
-void	handle_ping_response(t_ping_context *ping_info, double response_time);
 void	send_ping_packet(t_ping_context *ping_info);
 int		create_and_validate_socket(t_args *args);
 

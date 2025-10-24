@@ -15,6 +15,14 @@
 
 #include "ft_ping_types.h"
 #include <stdbool.h>  /* Para bool */
+#include <netinet/ip_icmp.h>  /* Para struct icmphdr */
+
+/* ===== CONSTANTES ===== */
+
+/* Return codes for icmp_receive() */
+#define ICMP_REPLY_SUCCESS  1.0   /* Any positive value = RTT in ms */
+#define ICMP_REPLY_TIMEOUT  -1.0  /* No response received */
+#define ICMP_REPLY_ERROR    -2.0  /* ICMP error message received */
 
 /* ===== FUNCIONES PRINCIPALES ===== */
 
@@ -40,6 +48,7 @@ int		find_target_address(const char *target, struct sockaddr_in *addr);
 int		icmp_request(int sockfd, struct sockaddr_in *dest_addr, uint16_t *packet_id, uint16_t *sequence, int seq_counter, int packet_size);
 double	icmp_receive(int sockfd, uint16_t expected_id, struct timeval *send_time, int mode_verbose);
 uint16_t icmp_checksum(const void *buf, int len);
+void	handle_icmp_error(struct icmphdr *icmp, struct sockaddr_in *addr, int seq);
 
 /* Statistics functions */
 void	setup_stats(t_ping_stats *stats);
